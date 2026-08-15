@@ -1,0 +1,40 @@
+<section class="summary">
+  <div><span class="label">Transactions</span><strong>{{ transactions | length }}</strong></div>
+  {% for currency, total in totals.items() %}
+    <div><span class="label">Total {{ currency }}</span><strong>{{ total | money }}</strong></div>
+  {% else %}
+    <div><span class="label">Total</span><strong>0.00</strong></div>
+  {% endfor %}
+</section>
+
+<table>
+  <thead>
+    <tr>
+      <th>Date</th><th>Merchant</th><th>Description</th><th>Location</th>
+      <th>Card</th><th>Cardholder</th><th class="num">Amount</th><th>Reference</th><th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for txn in transactions %}
+      <tr>
+        <td>{{ txn.txn_date }}</td>
+        <td>{{ txn.merchant }}</td>
+        <td>{{ txn.description }}</td>
+        <td>{{ txn.location }}</td>
+        <td>{{ txn.card_type }} ••{{ txn.last_digits }}</td>
+        <td>{{ txn.cardholder_name }}</td>
+        <td class="num">{{ txn.currency }} {{ txn.amount | money }}</td>
+        <td class="ref">{{ txn.reference }}</td>
+        <td>
+          {% if txn.payment_id %}
+            <a class="badge paid" href="/payments/{{ txn.payment_id }}">Paid</a>
+          {% else %}
+            <span class="badge pending">Pending</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="9" class="empty">No transactions in this range.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

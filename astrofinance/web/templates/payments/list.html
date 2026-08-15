@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Payments — AstroFinance{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h2>Payments</h2>
+  <a class="button" href="/payments/new">Record payment</a>
+</div>
+
+{% if request.query_params.get("error") %}
+  <p class="alert error">{{ request.query_params.get("error") }}</p>
+{% endif %}
+
+<table>
+  <thead>
+    <tr><th>Date</th><th class="num">Amount</th><th class="num">Covered</th><th class="num">Delta</th><th>Notes</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for payment in payments %}
+      <tr>
+        <td><a href="/payments/{{ payment.id }}">{{ payment.payment_date }}</a></td>
+        <td class="num">{{ payment.amount | money }}</td>
+        <td class="num">{{ payment.covered_sum | money }} ({{ payment.covered_count }})</td>
+        <td class="num">{{ (payment.amount - payment.covered_sum) | money }}</td>
+        <td>{{ payment.notes or "" }}</td>
+        <td>
+          <form method="post" action="/payments/{{ payment.id }}/unlink"
+                onsubmit="return confirm('Delete this payment and set its transactions back to pending?')">
+            <button type="submit" class="danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="empty">No payments recorded yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

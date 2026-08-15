@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Record payment — AstroFinance{% endblock %}
+
+{% block content %}
+<h2>Record payment</h2>
+{% if error %}<p class="alert error">{{ error }}</p>{% endif %}
+
+<form method="post" action="/payments">
+  <div class="filters">
+    <label>Payment date <input type="date" name="payment_date" value="{{ today }}" required></label>
+    <label>Amount <input type="number" step="0.01" name="amount" required></label>
+    <label>Currency
+      <select name="currency">
+        {% for code in ["CRC", "USD"] %}<option value="{{ code }}">{{ code }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Notes <input type="text" name="notes" placeholder="optional"></label>
+  </div>
+
+  <p class="hint">
+    Select the pending transactions this payment covers.
+    Saving writes to the Google Sheet, then refreshes this mirror.
+  </p>
+  <table>
+    <thead>
+      <tr><th></th><th>Date</th><th>Merchant</th><th>Card</th><th>Cardholder</th><th class="num">Amount</th></tr>
+    </thead>
+    <tbody>
+      {% for txn in pending %}
+        <tr>
+          <td><input type="checkbox" name="transaction_ids" value="{{ txn.id }}"></td>
+          <td>{{ txn.txn_date }}</td>
+          <td>{{ txn.merchant }}</td>
+          <td>{{ txn.card_type }} ••{{ txn.last_digits }}</td>
+          <td>{{ txn.cardholder_name }}</td>
+          <td class="num">{{ txn.currency }} {{ txn.amount | money }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="empty">No pending transactions.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <button type="submit">Save payment</button>
+</form>
+{% endblock %}

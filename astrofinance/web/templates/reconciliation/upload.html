@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Reconciliation — AstroFinance{% endblock %}
+
+{% block content %}
+<h2>Statement reconciliation</h2>
+<p class="hint">
+  Upload the bank's CSV export to compare it against the local database.
+  Column mapping currently expects:
+  {% for field, column in column_map.items() %}<code>{{ field }} → {{ column }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
+  Update <code>CSV_COLUMN_MAP</code> in <code>astrofinance/reconcile.py</code> with the real headers.
+</p>
+
+<form method="post" action="/reconciliation" enctype="multipart/form-data" class="filters">
+  <input type="file" name="statement" accept=".csv" required>
+  <button type="submit">Reconcile</button>
+</form>
+
+{% if report %}
+  <section class="summary">
+    <div><span class="label">Matched</span><strong>{{ report.matched | length }}</strong></div>
+    <div><span class="label">Mismatched</span><strong>{{ report.mismatched | length }}</strong></div>
+    <div><span class="label">Missing locally</span><strong>{{ report.missing_in_db | length }}</strong></div>
+    <div><span class="label">Missing in statement</span><strong>{{ report.missing_in_statement | length }}</strong></div>
+  </section>
+
+  <h3>Mismatched amounts</h3>
+  <table>
+    <thead><tr><th>Reference</th><th>Reason</th></tr></thead>
+    <tbody>
+      {% for entry in report.mismatched %}
+        <tr><td class="ref">{{ entry.transaction.reference }}</td><td>{{ entry.reason }}</td></tr>
+      {% else %}
+        <tr><td colspan="2" class="empty">None.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>In statement but not in database</h3>
+  <table>
+    <thead><tr><th>CSV row</th></tr></thead>
+    <tbody>
+      {% for row in report.missing_in_db %}
+        <tr><td>{{ row }}</td></tr>
+      {% else %}
+        <tr><td class="empty">None.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>In database but not in statement</h3>
+  <table>
+    <thead><tr><th>Date</th><th>Merchant</th><th class="num">Amount</th><th>Reference</th></tr></thead>
+    <tbody>
+      {% for txn in report.missing_in_statement %}
+        <tr>
+          <td>{{ txn.txn_date }}</td><td>{{ txn.merchant }}</td>
+          <td class="num">{{ txn.currency }} {{ txn.amount | money }}</td>
+          <td class="ref">{{ txn.reference }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="empty">None.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+{% endblock %}

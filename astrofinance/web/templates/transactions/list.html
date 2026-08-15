@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Transactions — AstroFinance{% endblock %}
+
+{% block content %}
+{% if request.query_params.get("error") %}
+  <p class="alert error">Pull failed: {{ request.query_params.get("error") }}</p>
+{% elif pulled %}
+  <p class="alert ok">
+    Pulled from Sheet: {{ request.query_params.get("new") }} new,
+    {{ request.query_params.get("updated") }} updated,
+    {{ request.query_params.get("pruned") }} pruned,
+    {{ request.query_params.get("errors") }} errors.
+  </p>
+{% endif %}
+
+<form method="get" action="/transactions" class="filters">
+  <label>From <input type="date" name="start_date" value="{{ start_date }}"></label>
+  <label>To <input type="date" name="end_date" value="{{ end_date }}"></label>
+  <label>Cardholder
+    <select name="cardholder_id">
+      <option value="">All</option>
+      {% for holder in cardholders %}
+        <option value="{{ holder.id }}" {% if holder.id == cardholder_id %}selected{% endif %}>{{ holder.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Card
+    <select name="card_id">
+      <option value="">All</option>
+      {% for card in cards %}
+        <option value="{{ card.id }}" {% if card.id == card_id %}selected{% endif %}>
+          {{ card.card_type }} ••{{ card.last_digits }} — {{ card.cardholder_name }}
+        </option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Status
+    <select name="status">
+      {% for value, label in [("all", "All"), ("pending", "Pending"), ("paid", "Paid")] %}
+        <option value="{{ value }}" {% if value == status %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit">Apply</button>
+  <a class="reset" href="/transactions">Reset to billing period</a>
+</form>
+
+{% include "transactions/_results.html" %}
+{% endblock %}

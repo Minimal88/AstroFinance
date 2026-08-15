@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Payment {{ payment.payment_date }} — AstroFinance{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h2>Payment on {{ payment.payment_date }}</h2>
+  <a href="/payments">Back to payments</a>
+</div>
+
+<section class="summary">
+  <div><span class="label">Payment amount</span><strong>{{ payment.amount | money }}</strong></div>
+  <div><span class="label">Covered transactions</span><strong>{{ covered_sum | money }} ({{ transactions | length }})</strong></div>
+  <div><span class="label">Delta</span><strong>{{ delta | money }}</strong></div>
+</section>
+
+{% if payment.notes %}<p class="hint">{{ payment.notes }}</p>{% endif %}
+
+<table>
+  <thead>
+    <tr><th>Date</th><th>Merchant</th><th>Description</th><th>Card</th><th>Cardholder</th><th class="num">Amount</th><th>Reference</th></tr>
+  </thead>
+  <tbody>
+    {% for txn in transactions %}
+      <tr>
+        <td>{{ txn.txn_date }}</td>
+        <td>{{ txn.merchant }}</td>
+        <td>{{ txn.description }}</td>
+        <td>{{ txn.card_type }} ••{{ txn.last_digits }}</td>
+        <td>{{ txn.cardholder_name }}</td>
+        <td class="num">{{ txn.currency }} {{ txn.amount | money }}</td>
+        <td class="ref">{{ txn.reference }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
