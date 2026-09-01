@@ -170,7 +170,7 @@ function runParserTests() {
  * diff" step). Safe: reads only, writes nothing.
  */
 function debugParseLatest() {
-  const threads = GmailApp.search('from:' + senderEmail_(), 0, 1);
+  const threads = GmailApp.search(senderQuery_(), 0, 1);
   if (threads.length === 0) {
     Logger.log('No messages found for that sender.');
     return;

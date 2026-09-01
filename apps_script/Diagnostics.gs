@@ -47,35 +47,38 @@ function activeMailbox_() {
  */
 function diagnoseSender() {
   const raw = props_().getProperty('BAC_SENDER_EMAIL');
-  const sender = senderEmail_();
-  const domain = sender.indexOf('@') >= 0 ? sender.split('@')[1] : sender;
+  const senders = senderEmails_();
 
   const out = [];
   out.push('Reading mailbox: ' + activeMailbox_());
   // JSON.stringify so trailing spaces and newlines are visible.
   out.push('Property (raw):  ' + JSON.stringify(raw));
-  out.push('Used in query:   ' + JSON.stringify(sender));
+  out.push('Used in query:   ' + JSON.stringify(senderQuery_()));
   out.push('');
 
-  const queries = [
-    'from:' + sender,
-    'in:anywhere from:' + sender,
-    'from:' + domain,
-    'in:anywhere from:' + domain,
-  ];
+  senders.forEach(function (sender) {
+    const domain = sender.indexOf('@') >= 0 ? sender.split('@')[1] : sender;
+    const queries = [
+      'from:' + sender,
+      'in:anywhere from:' + sender,
+      'from:' + domain,
+      'in:anywhere from:' + domain,
+    ];
 
-  queries.forEach(function (query) {
-    let count;
-    try {
-      count = GmailApp.search(query, 0, 50).length;
-    } catch (e) {
-      count = 'ERROR: ' + (e.message || e);
-    }
-    out.push(String(count) + '\tthread(s)\t' + query);
+    out.push(sender + ':');
+    queries.forEach(function (query) {
+      let count;
+      try {
+        count = GmailApp.search(query, 0, 50).length;
+      } catch (e) {
+        count = 'ERROR: ' + (e.message || e);
+      }
+      out.push('  ' + String(count) + '\tthread(s)\t' + query);
+    });
+    out.push('');
   });
 
-  out.push('');
-  out.push('0 everywhere means the address is wrong -- run listBacSenders().');
+  out.push('0 everywhere for an address means it is wrong -- run listBacSenders().');
   out.push('0 on the first query but not the second means the mail is in');
   out.push('Spam or Trash; fix that in Gmail rather than changing the query.');
   Logger.log(out.join('\n'));
@@ -163,7 +166,7 @@ function syncHorizon_() {
  * Read-only. Run it after a backfill and any time the numbers look wrong.
  */
 function auditCoverage() {
-  const sender = senderEmail_();
+  const senderQuery = senderQuery_();
   const deadline = Date.now() + MAX_RUNTIME_MS;
 
   const storedIds = columnSet_('Transactions', 'GmailMessageId');
@@ -175,7 +178,7 @@ function auditCoverage() {
   // in:anywhere, so this set is what separates "we missed it" from "the query
   // cannot see it".
   const reachable = new Set();
-  const reach = scanMessages_('from:' + sender, deadline, function (message) {
+  const reach = scanMessages_(senderQuery, deadline, function (message) {
     reachable.add(message.getId());
   });
 
@@ -203,7 +206,7 @@ function auditCoverage() {
   let withGaps = 0;
   let inErrors = 0;
 
-  const census = scanMessages_('in:anywhere from:' + sender, deadline, function (message) {
+  const census = scanMessages_('in:anywhere ' + senderQuery, deadline, function (message) {
     const id = message.getId();
     if (storedIds.has(id)) {
       inSheet += 1;
@@ -257,7 +260,7 @@ function auditCoverage() {
   });
 
   const out = [];
-  out.push('Coverage audit for from:' + sender);
+  out.push('Coverage audit for ' + senderQuery);
   out.push(syncing
     ? 'Incremental sync: every ' + TRIGGER_INTERVAL_MINUTES + ' min, ' +
       INCREMENTAL_WINDOW + ' lookback (back to ' + horizon + ').'

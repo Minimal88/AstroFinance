@@ -67,17 +67,35 @@ function requireProperty_(name) {
 }
 
 /**
- * The BAC notification address.
+ * The BAC notification address(es).
  *
- * Trimmed, and tolerant of a full "Display Name <addr@host>" header being
- * pasted in: Gmail's from: operator would match nothing for that form, and
- * the Script Properties UI shows no hint that a stray space or the display
- * name is there.
+ * BAC_SENDER_EMAIL may hold a comma-separated list, since BAC sends
+ * notifications from more than one address (e.g. a new one added later).
+ * Each entry is trimmed, and tolerant of a full "Display Name <addr@host>"
+ * header being pasted in: Gmail's from: operator would match nothing for
+ * that form, and the Script Properties UI shows no hint that a stray space
+ * or the display name is there.
  */
-function senderEmail_() {
-  const raw = requireProperty_('BAC_SENDER_EMAIL').trim();
-  const angled = raw.match(/<([^>]+)>/);
-  return (angled ? angled[1] : raw).trim();
+function senderEmails_() {
+  const raw = requireProperty_('BAC_SENDER_EMAIL');
+  return raw
+    .split(',')
+    .map(function (part) {
+      const trimmed = part.trim();
+      const angled = trimmed.match(/<([^>]+)>/);
+      return (angled ? angled[1] : trimmed).trim();
+    })
+    .filter(function (email) {
+      return email.length > 0;
+    });
+}
+
+/** Gmail search fragment matching any of the configured sender addresses. */
+function senderQuery_() {
+  const clauses = senderEmails_().map(function (email) {
+    return 'from:' + email;
+  });
+  return clauses.length > 1 ? '(' + clauses.join(' OR ') + ')' : clauses[0];
 }
 
 function spreadsheet_() {

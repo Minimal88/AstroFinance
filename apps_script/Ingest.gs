@@ -125,7 +125,7 @@ function runIncrementalSync() {
 
   try {
     const deadline = Date.now() + MAX_RUNTIME_MS;
-    const query = 'from:' + senderEmail_() + ' ' + INCREMENTAL_WINDOW;
+    const query = senderQuery_() + ' ' + INCREMENTAL_WINDOW;
     const threads = GmailApp.search(query, 0, 100);
     const knownRefs = loadReferenceSet_();
 
@@ -185,7 +185,7 @@ function backfillRun() {
 
   try {
     const deadline = Date.now() + MAX_RUNTIME_MS;
-    const query = 'from:' + senderEmail_() + ' before:' + requireProperty_('BACKFILL_BEFORE');
+    const query = senderQuery_() + ' before:' + requireProperty_('BACKFILL_BEFORE');
     const knownRefs = loadReferenceSet_();
 
     let offset = parseInt(props_().getProperty('BACKFILL_OFFSET') || '0', 10);

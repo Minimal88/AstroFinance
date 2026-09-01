@@ -51,12 +51,15 @@ Create one file per `.gs` above (the editor's ⚙️ **Project Settings → Show
 
 | Property | Value |
 |---|---|
-| `BAC_SENDER_EMAIL` | The exact `From:` address on a real BAC notification email |
+| `BAC_SENDER_EMAIL` | The exact `From:` address(es) on real BAC notification emails |
 | `SPREADSHEET_ID` | The ID from step 1 |
 
 `BAC_SENDER_EMAIL` is the one value nothing works without. Open a BAC
 transaction email, show the original/details, and copy the sender address
-verbatim.
+verbatim. BAC has been known to send from more than one address — if so, put
+all of them here as a comma-separated list, e.g.
+`notificacion@baccredomatic.com,NotificacionBAC@baccredomatic.cr`. Every
+address in the list is matched.
 
 Don't know it? Run **`listBacSenders`** — it tallies the `From:` addresses of
 anything in the mailbox that looks like a bank notification and prints them
