@@ -82,9 +82,19 @@ Payments marked on the phone in AppSheet reach the web app on the next `pull`.
 
 ## Reconciliation CSV mapping
 
-`CSV_COLUMN_MAP` in [astrofinance/reconcile.py](astrofinance/reconcile.py) still
-holds placeholder column names. Replace them with the real headers from a BAC
-CSV export before reconciliation will match anything.
+The reconciliation page guesses the reference, amount and date columns from the
+CSV headers (Spanish and English names both work). If a guess is wrong, pick the
+right columns from the dropdowns and re-run; the choice is remembered in a
+cookie and reused for the next upload with the same headers.
+
+Matching rules:
+
+- By reference first, then by amount within ±0.01 and date within
+  `DATE_TOLERANCE_DAYS` (3) of the statement row, closest date first.
+- Each transaction matches at most one statement row.
+- Amounts are compared as absolute values, so it does not matter whether the
+  bank exports charges as positive or negative.
+- "In database but not in statement" only covers the dates the statement spans.
 
 ## Tests
 
@@ -92,7 +102,7 @@ CSV export before reconciliation will match anything.
 .venv/Scripts/python.exe -m pytest tests -q
 ```
 
-Covers the billing-period maths. The email parsing tests live in
+Covers the billing-period maths and statement reconciliation. The email parsing tests live in
 `apps_script/Tests.gs` and run from the Apps Script editor, alongside the parser
 they now guard.
 

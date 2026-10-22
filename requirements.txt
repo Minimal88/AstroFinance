@@ -6,3 +6,4 @@ python-dotenv
 google-auth
 google-api-python-client
 pytest
+httpx2
