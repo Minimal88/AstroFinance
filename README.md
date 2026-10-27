@@ -80,6 +80,26 @@ Open http://127.0.0.1:8000 for:
 
 Payments marked on the phone in AppSheet reach the web app on the next `pull`.
 
+## Phone app (Claude artifact)
+
+[`app/astrofinance.html`](app/astrofinance.html) is a single-page app published as
+a Claude artifact. It replaces the AppSheet app. It reads and writes the same
+Google Sheet through the viewer's Google Sheets connector in claude.ai, so it
+needs no service account.
+
+- **Pendientes**: pending charges grouped by cardholder. A tile per card family
+  shows when its next payment is due and what that statement holds.
+- **Statements per card family**: Visa and Mastercard close on the 21st and are
+  due on the 5th; Amex closes on the 27th and is due on the 12th. A statement
+  runs from the day after the previous cutoff through the cutoff day. Both days
+  can be changed in the app's settings.
+- **Marcar pagado**: creates a row in Payments (or reuses one) and writes its
+  PaymentID onto the selected transactions. It re-reads the Sheet first so a
+  payment set elsewhere is not overwritten.
+- **Pagos**: each payment shows whether it matches the transactions it covers.
+
+To change the app, edit the file and republish it to the same artifact.
+
 ## Reconciliation CSV mapping
 
 The reconciliation page guesses the reference, amount and date columns from the

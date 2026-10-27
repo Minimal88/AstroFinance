@@ -1,0 +1,1206 @@
+<title>AstroFinance</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one phone-width column. Sticky header with period + search, list of
+   cardholder groups, a bottom tab bar, and a selection bar that rises above it. */
+:root {
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --surface-2: #f5f7fb;
+  --fg: #111826;
+  --muted: #5d6879;
+  --line: #dbe1ea;
+  --accent: #1d6fd8;
+  --accent-soft: #e2eefc;
+  --on-accent: #ffffff;
+  --ok: #17824a;
+  --ok-soft: #dff3e8;
+  --warn: #b5470f;
+  --warn-soft: #fbe9df;
+  --danger: #c2262e;
+  --shadow: 0 10px 30px rgba(17, 24, 38, 0.14);
+  --font-display: "Bricolage Grotesque", "Figtree", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 14px;
+  --tabbar-h: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117; --surface: #161c25; --surface-2: #1c2430; --fg: #e6ecf4; --muted: #8b97a9;
+    --line: #283140; --accent: #5aa7ff; --accent-soft: #16304f; --on-accent: #06121f;
+    --ok: #4fc68c; --ok-soft: #133524; --warn: #ff9a66; --warn-soft: #3a2116; --danger: #ff6b72;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1117; --surface: #161c25; --surface-2: #1c2430; --fg: #e6ecf4; --muted: #8b97a9;
+  --line: #283140; --accent: #5aa7ff; --accent-soft: #16304f; --on-accent: #06121f;
+  --ok: #4fc68c; --ok-soft: #133524; --warn: #ff9a66; --warn-soft: #3a2116; --danger: #ff6b72;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.4;
+  -webkit-tap-highlight-color: transparent;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 30; background: var(--surface);
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+.app { max-width: 720px; margin: 0 auto; padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 24px); }
+.app.has-selection { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 96px); }
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* Header */
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.top-row { display: flex; align-items: center; gap: 10px; padding-block: 12px 8px; }
+.brand { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.brand svg { flex: none; }
+.brand h1 { margin: 0; font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; }
+.sync { font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon-btn {
+  display: inline-grid; place-items: center; width: 40px; height: 40px; flex: none;
+  border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2);
+}
+.icon-btn:active { transform: scale(0.96); }
+.icon-btn.spin svg { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .icon-btn.spin svg { animation: none; } }
+
+.controls { display: flex; flex-direction: column; gap: 8px; padding-block: 0 12px; }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-inline: -2px; padding: 2px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+  padding: 6px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+}
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.search { position: relative; }
+.search input {
+  width: 100%; padding: 9px 12px 9px 36px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+.period-label { font-size: 0.78rem; color: var(--muted); }
+
+/* Summary */
+.summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-block: 16px 4px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
+.stat .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+.stat .value { font-size: 1.25rem; font-weight: 600; margin-top: 2px; overflow-wrap: anywhere; }
+.stat .sub { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+/* Next-payment tiles, one per card family */
+.due-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-block: 16px 4px; }
+@media (max-width: 380px) { .due-grid { grid-template-columns: minmax(0, 1fr); } }
+.due-tile {
+  display: flex; flex-direction: column; gap: 6px; text-align: left; min-width: 0;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px;
+}
+.due-tile[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.due-tile .brand-name { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.due-when { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; line-height: 1.15; }
+.due-when.soon { color: var(--warn); }
+.due-when.late { color: var(--danger); }
+.due-tile .value { font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
+.due-tile .sub { font-size: 0.76rem; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dot.visamc { background: var(--accent); }
+.dot.amex { background: var(--ok); }
+.filter-note { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--muted); margin-top: 10px; }
+.filter-note button { background: none; border: 0; color: var(--accent); font-weight: 600; padding: 4px; }
+.card-rules { display: grid; grid-template-columns: minmax(0, 1fr) 90px 90px; gap: 8px 10px; align-items: end; margin-bottom: 12px; }
+.card-rules .head { font-size: 0.74rem; color: var(--muted); font-weight: 600; }
+.card-rules .who { font-weight: 600; display: flex; align-items: center; gap: 8px; padding-bottom: 10px; }
+.card-rules input { padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); width: 100%; }
+
+/* Groups and rows */
+.section-title { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; margin: 18px 0 8px; }
+.group { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin-top: 12px; overflow: hidden; }
+.group-head {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 12px 14px; background: none; border: 0; border-bottom: 1px solid var(--line);
+}
+.group-head .name { flex: 1; min-width: 0; font-weight: 700; font-size: 0.92rem; letter-spacing: 0.01em; }
+.group-head .name small { display: block; font-weight: 500; color: var(--muted); font-size: 0.78rem; letter-spacing: 0; }
+.group-head .totals { text-align: right; font-size: 0.9rem; font-weight: 600; }
+.group-head .chev { color: var(--muted); transition: transform 0.15s; }
+.group.collapsed .group-head { border-bottom: 0; }
+.group.collapsed .chev { transform: rotate(-90deg); }
+.group.collapsed .rows { display: none; }
+.select-all { font-size: 0.78rem; color: var(--accent); font-weight: 600; background: none; border: 0; padding: 8px 14px; }
+
+.row { display: flex; align-items: stretch; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row .pick { display: grid; place-items: center; padding-left: 14px; }
+.row .pick input { width: 20px; height: 20px; accent-color: var(--accent); }
+.row .body {
+  flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px;
+  padding: 11px 14px; background: none; border: 0; text-align: left;
+}
+.row.selected { background: var(--accent-soft); }
+.row .merchant { font-weight: 600; font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .amount { font-size: 0.95rem; font-weight: 600; text-align: right; }
+.row .meta { font-size: 0.78rem; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; }
+.row .side { display: flex; justify-content: flex-end; align-items: center; }
+.card-tag { font-family: var(--font-num); font-size: 0.72rem; }
+.pill { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; letter-spacing: 0.02em; }
+.pill.pending { background: var(--warn-soft); color: var(--warn); }
+.pill.paid { background: var(--ok-soft); color: var(--ok); }
+.pill.cat { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+
+.empty, .notice {
+  background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius);
+  padding: 22px 18px; margin-top: 16px; text-align: center; color: var(--muted);
+}
+.notice { border-style: solid; text-align: left; color: var(--fg); }
+.notice.error { border-color: var(--danger); }
+.notice h3 { margin: 0 0 4px; font-size: 1rem; }
+.notice p { margin: 0 0 10px; color: var(--muted); }
+.skeleton { height: 56px; border-radius: 10px; background: linear-gradient(90deg, var(--surface-2), var(--line), var(--surface-2)); background-size: 200% 100%; animation: shimmer 1.4s infinite; margin-top: 10px; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+.filters-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.filters-row select { flex: 1 1 140px; min-width: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); }
+
+/* Payments */
+.pay-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 13px 14px; border-top: 1px solid var(--line); width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; }
+.pay-card:first-child { border-top: 0; }
+.pay-card .title { font-weight: 600; }
+.pay-card .meta { font-size: 0.78rem; color: var(--muted); }
+.delta-ok { color: var(--ok); }
+.delta-off { color: var(--warn); }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 11px 16px; border-radius: 12px; border: 1px solid transparent; font-weight: 700;
+  background: var(--accent); color: var(--on-accent);
+}
+.btn.secondary { background: var(--surface-2); color: var(--fg); border-color: var(--line); }
+.btn.ghost { background: none; color: var(--accent); padding-inline: 8px; }
+.btn.danger { background: none; color: var(--danger); border-color: var(--line); }
+.btn[disabled] { opacity: 0.55; cursor: progress; }
+
+/* Selection bar */
+.selbar {
+  position: fixed; left: 0; right: 0; z-index: 25;
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 8px);
+  display: flex; justify-content: center; pointer-events: none;
+  padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px));
+}
+.selbar-inner {
+  pointer-events: auto; width: 100%; max-width: 696px; display: flex; align-items: center; gap: 10px;
+  background: var(--fg); color: var(--bg); border-radius: 16px; padding: 10px 10px 10px 16px; box-shadow: var(--shadow);
+}
+.selbar-inner .info { flex: 1; min-width: 0; font-size: 0.85rem; }
+.selbar-inner .info strong { display: block; font-size: 1rem; }
+.selbar-inner .clear { background: none; border: 0; color: var(--bg); opacity: 0.75; font-weight: 600; padding: 8px; }
+
+/* Tab bar */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 26;
+  background: var(--surface); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
+}
+.tabbar nav { max-width: 720px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); height: var(--tabbar-h); }
+.tab { background: none; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--muted); font-size: 0.74rem; font-weight: 600; position: relative; }
+.tab[aria-current="page"] { color: var(--accent); }
+.tab .badge { position: absolute; top: 8px; left: calc(50% + 6px); background: var(--warn); color: var(--surface); font-size: 0.65rem; border-radius: 999px; padding: 1px 6px; font-family: var(--font-num); }
+
+/* Sheets (modals) */
+.scrim { position: fixed; inset: 0; background: rgba(5, 8, 14, 0.5); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
+.sheet {
+  width: 100%; max-width: 720px; max-height: 88vh; overflow-y: auto; background: var(--surface);
+  border-radius: 20px 20px 0 0; padding-top: 8px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px));
+  box-shadow: var(--shadow);
+}
+.sheet .grab { width: 40px; height: 4px; border-radius: 4px; background: var(--line); margin: 0 auto 10px; }
+.sheet h2 { font-family: var(--font-display); margin: 4px 0 4px; font-size: 1.25rem; letter-spacing: -0.01em; }
+.sheet .lede { color: var(--muted); margin: 0 0 14px; font-size: 0.88rem; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.field label { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+.field input, .field select, .field textarea { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); width: 100%; }
+.field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 10px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 3px; margin-bottom: 14px; }
+.seg button { border: 0; background: none; padding: 8px; border-radius: 9px; font-weight: 600; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+.actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; flex-wrap: wrap; }
+.kv { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px 12px; font-size: 0.9rem; margin: 10px 0 16px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+.big-amount { font-size: 1.8rem; font-weight: 600; margin: 6px 0 2px; }
+.mini-list { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 6px 0 14px; }
+.mini-list .row .body { padding-block: 9px; }
+.form-error { color: var(--danger); font-size: 0.85rem; margin: 4px 0 8px; }
+a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
+
+/* Toast */
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 50;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 0.88rem;
+  box-shadow: var(--shadow); max-width: calc(100% - 32px);
+}
+.toast.error { background: var(--danger); color: #fff; }
+
+.settings-link { display: block; margin: 24px auto 0; background: none; border: 0; color: var(--muted); font-size: 0.8rem; text-decoration: underline; }
+</style>
+
+<div class="app" id="app">
+  <header class="top">
+    <div class="gutter top-row">
+      <div class="brand">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M20.5 4.5c3.6-1 6.2-.6 6.9.1.7.7 1.1 3.3.1 6.9-1 3.5-3.4 7-6.9 9.6l-.7 4.6-4.2 2.6-.7-4.9-4.3-4.3-4.9-.7 2.6-4.2 4.6-.7c2.6-3.5 6.1-5.9 9.5-7z" fill="var(--accent)"/>
+          <circle cx="20.6" cy="11.4" r="2.4" fill="var(--surface)"/>
+          <path d="M8.6 20.3c-2 .6-3.2 2.5-3.6 6.7 4.2-.4 6.1-1.6 6.7-3.6" fill="none" stroke="var(--warn)" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <div style="min-width:0">
+          <h1>AstroFinance</h1>
+          <div class="sync" id="sync">Conectando con tu hoja…</div>
+        </div>
+      </div>
+      <button class="icon-btn" id="refresh" type="button" aria-label="Actualizar desde la hoja">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      </button>
+    </div>
+    <div class="gutter controls">
+      <div class="chips" id="periods" role="group" aria-label="Periodo"></div>
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Buscar comercio, tarjeta, referencia…" autocomplete="off">
+      </div>
+      <div class="period-label" id="periodLabel"></div>
+    </div>
+  </header>
+
+  <main class="gutter" id="main"></main>
+</div>
+
+<div class="selbar" id="selbar" hidden>
+  <div class="selbar-inner">
+    <div class="info"><strong class="num" id="selTotal"></strong><span id="selCount"></span></div>
+    <button class="clear" id="selClear" type="button">Limpiar</button>
+    <button class="btn" id="selPay" type="button">Marcar pagado</button>
+  </div>
+</div>
+
+<div class="tabbar">
+  <nav aria-label="Secciones">
+    <button class="tab" type="button" data-tab="pending">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      Pendientes<span class="badge" id="pendingBadge" hidden></span>
+    </button>
+    <button class="tab" type="button" data-tab="all">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>
+      Movimientos
+    </button>
+    <button class="tab" type="button" data-tab="payments">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+      Pagos
+    </button>
+  </nav>
+</div>
+
+<div id="modal"></div>
+<div id="toastHost"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- Config ----------
+  const SERVER = "Google Sheets";
+  const DEFAULT_SHEET_ID = "1jLcS4xf7jNM6OE2nGU5aHX3JThDyL4ud5gVqhvZ13ss";
+  const TXN_RANGE = "Transactions!A:P";
+  const PAY_RANGE = "Payments!A:F";
+  // Column letters in the Transactions tab (mirrors HEADERS in apps_script/Config.gs).
+  const COL_CATEGORY = "L";
+  const COL_PAYMENT = "M";
+
+  const store = {
+    get(key, fallback) { try { const v = localStorage.getItem("af:" + key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; } },
+    set(key, value) { try { localStorage.setItem("af:" + key, JSON.stringify(value)); } catch { /* storage unavailable */ } },
+  };
+
+  // Each card family closes its statement on its own day and is due on its own day.
+  const CARD_FAMILIES = [
+    { id: "visamc", name: "Visa · Mastercard", short: "Visa/MC", defaults: { cutoff: 21, pay: 5 } },
+    { id: "amex", name: "Amex", short: "Amex", defaults: { cutoff: 27, pay: 12 } },
+  ];
+  const savedCards = store.get("cards", {});
+  const settings = {
+    sheetId: store.get("sheetId", DEFAULT_SHEET_ID),
+    cards: Object.fromEntries(CARD_FAMILIES.map((f) => [f.id, { ...f.defaults, ...(savedCards[f.id] || {}) }])),
+  };
+  const familyOf = (t) => (String(t.cardType).toUpperCase() === "AMEX" ? "amex" : "visamc");
+  const familyById = (id) => CARD_FAMILIES.find((f) => f.id === id);
+
+  const state = {
+    tab: ["pending", "all", "payments"].includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "pending"),
+    period: ["next", "following", "previous", "all"].includes(store.get("period2", "")) ? store.get("period2") : "next",
+    brand: "",
+    query: "",
+    holder: "",
+    status: "all",
+    collapsed: new Set(store.get("collapsed", [])),
+    selected: new Set(),
+    txns: null,
+    payments: null,
+    txnError: null,
+    payError: null,
+    updatedAt: null,
+    loading: true,
+    mcp: undefined,
+  };
+
+  // ---------- Helpers ----------
+  const $ = (sel) => document.querySelector(sel);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function parseAmount(raw) {
+    if (typeof raw === "number") return raw;
+    let t = String(raw ?? "").trim();
+    if (!t) return 0;
+    const neg = /^\(.*\)$/.test(t) || t.startsWith("-");
+    t = t.replace(/[^\d.,]/g, "");
+    if (t.includes(",") && t.includes(".")) {
+      t = t.lastIndexOf(",") > t.lastIndexOf(".") ? t.replace(/\./g, "").replace(",", ".") : t.replace(/,/g, "");
+    } else if (t.includes(",")) {
+      t = /,\d{1,2}$/.test(t) ? t.replace(",", ".") : t.replace(/,/g, "");
+    }
+    const n = parseFloat(t);
+    return isNaN(n) ? 0 : (neg ? -n : n);
+  }
+
+  // The script writes ISO dates; the Sheet may show M/D/YYYY for rows typed by hand.
+  function parseDate(raw) {
+    const t = String(raw ?? "").trim();
+    let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return iso(+m[1], +m[2], +m[3]);
+    m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return iso(+m[3], +m[1], +m[2]);
+    return "";
+  }
+  function iso(y, mo, d) { return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`; }
+  function todayIso() { const d = new Date(); return iso(d.getFullYear(), d.getMonth() + 1, d.getDate()); }
+  function addDays(isoDate, n) { const [y, m, d] = isoDate.split("-").map(Number); const dt = new Date(y, m - 1, d + n); return iso(dt.getFullYear(), dt.getMonth() + 1, dt.getDate()); }
+
+  const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  function fmtDate(isoDate, withYear) {
+    if (!isoDate) return "—";
+    const [y, m, d] = isoDate.split("-").map(Number);
+    return `${d} ${MONTHS[m - 1]}${withYear ? " " + y : ""}`;
+  }
+
+  const SYMBOL = { CRC: "₡", USD: "$" };
+  function money(amount, currency) {
+    const sym = SYMBOL[currency] ?? (currency ? currency + " " : "");
+    const n = Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (amount < 0 ? "−" : "") + sym + n;
+  }
+  function totalsByCurrency(list) {
+    const out = {};
+    for (const t of list) out[t.currency] = (out[t.currency] || 0) + t.amount;
+    return out;
+  }
+  function totalsText(totals, sep = " · ") {
+    const keys = Object.keys(totals).sort((a, b) => (a === "CRC" ? -1 : b === "CRC" ? 1 : a.localeCompare(b)));
+    return keys.length ? keys.map((c) => money(totals[c], c)).join(sep) : money(0, "CRC");
+  }
+  function titleCase(name) {
+    return String(name || "").toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+  }
+
+  // ---------- Statements ----------
+  // A statement closes on the cutoff day (inclusive) and covers everything since
+  // the day after the previous cutoff. It is due on the pay day: the next month
+  // when the pay day comes before the cutoff day (21 -> 5), else the same month.
+  function cutoffFor(y, m, day) { const last = new Date(y, m, 0).getDate(); return iso(y, m, Math.min(day, last)); }
+  function shiftMonth(y, m, delta) { const idx = y * 12 + (m - 1) + delta; return [Math.floor(idx / 12), (idx % 12) + 1]; }
+  function statement(familyId, offset) {
+    const { cutoff, pay } = settings.cards[familyId];
+    const today = todayIso();
+    let [y, m] = today.split("-").map(Number);
+    // offset 0 = the statement that contains today (still open).
+    if (today > cutoffFor(y, m, cutoff)) [y, m] = shiftMonth(y, m, 1);
+    [y, m] = shiftMonth(y, m, offset);
+    const end = cutoffFor(y, m, cutoff);
+    const start = addDays(cutoffFor(...shiftMonth(y, m, -1), cutoff), 1);
+    const due = cutoffFor(...shiftMonth(y, m, pay <= cutoff ? 1 : 0), pay);
+    return { familyId, start, end, due, open: end >= today };
+  }
+  // The statement whose payment is the next one coming up (closed or not).
+  function nextStatementOffset(familyId) {
+    for (let k = -2; k <= 1; k++) if (statement(familyId, k).due >= todayIso()) return k;
+    return 0;
+  }
+  const PERIODS = [
+    { id: "next", label: "Próximo pago" },
+    { id: "following", label: "Siguiente estado" },
+    { id: "previous", label: "Estado anterior" },
+    { id: "all", label: "Todo" },
+  ];
+  function statementFor(familyId) {
+    const base = nextStatementOffset(familyId);
+    if (state.period === "next") return statement(familyId, base);
+    if (state.period === "following") return statement(familyId, base + 1);
+    if (state.period === "previous") return statement(familyId, base - 1);
+    return null;
+  }
+  function statementOfDate(familyId, date) {
+    for (let k = -24; k <= 2; k++) { const st = statement(familyId, k); if (date >= st.start && date <= st.end) return st; }
+    return null;
+  }
+  function daysUntil(isoDate) {
+    const [y, m, d] = isoDate.split("-").map(Number);
+    const [ty, tm, td] = todayIso().split("-").map(Number);
+    return Math.round((new Date(y, m - 1, d) - new Date(ty, tm - 1, td)) / 86400000);
+  }
+  function whenText(isoDate) {
+    const n = daysUntil(isoDate);
+    if (n === 0) return "hoy";
+    if (n === 1) return "mañana";
+    if (n > 1) return `en ${n} días`;
+    return n === -1 ? "ayer" : `hace ${-n} días`;
+  }
+
+  // ---------- Data mapping ----------
+  function mapTransactions(values) {
+    if (!Array.isArray(values) || !values.length) return [];
+    const header = values[0].map((h) => String(h).trim());
+    const col = (name) => header.indexOf(name);
+    const idx = {
+      ref: col("Reference"), date: col("TxnDate"), merchant: col("Merchant"), description: col("Description"),
+      location: col("Location"), currency: col("Currency"), amount: col("Amount"), cardType: col("CardType"),
+      last: col("LastDigits"), holder: col("CardholderName"), auth: col("Authorization"), category: col("Category"),
+      paymentId: col("PaymentID"), permalink: col("GmailPermalink"),
+    };
+    const missing = Object.entries(idx).filter(([, i]) => i < 0).map(([k]) => k);
+    if (missing.length) throw new Error("La pestaña Transactions no tiene las columnas esperadas.");
+    const out = [];
+    values.forEach((r, i) => {
+      if (i === 0) return;
+      const ref = String(r[idx.ref] ?? "").trim();
+      if (!ref) return;
+      out.push({
+        row: i + 1,
+        ref,
+        date: parseDate(r[idx.date]),
+        merchant: String(r[idx.merchant] ?? "").trim() || "(sin comercio)",
+        description: String(r[idx.description] ?? "").trim(),
+        location: String(r[idx.location] ?? "").trim(),
+        currency: String(r[idx.currency] ?? "").trim() || "CRC",
+        amount: parseAmount(r[idx.amount]),
+        cardType: String(r[idx.cardType] ?? "").trim(),
+        last: String(r[idx.last] ?? "").trim(),
+        holder: String(r[idx.holder] ?? "").trim() || "(sin titular)",
+        auth: String(r[idx.auth] ?? "").trim(),
+        category: String(r[idx.category] ?? "").trim(),
+        paymentId: String(r[idx.paymentId] ?? "").trim(),
+        permalink: String(r[idx.permalink] ?? "").trim(),
+      });
+    });
+    return out;
+  }
+  function mapPayments(values) {
+    if (!Array.isArray(values) || !values.length) return [];
+    return values.slice(1).map((r, i) => ({
+      row: i + 2,
+      id: String(r[0] ?? "").trim(),
+      date: parseDate(r[1]),
+      amount: parseAmount(r[2]),
+      currency: String(r[3] ?? "").trim() || "CRC",
+      notes: String(r[4] ?? "").trim(),
+    })).filter((p) => p.id);
+  }
+  function valuesOf(result) {
+    const p = result && (result.payload ?? result);
+    if (p && Array.isArray(p.values)) return p.values;
+    if (p && typeof p === "object" && !Array.isArray(p)) return [];
+    throw new Error("Respuesta inesperada de Google Sheets.");
+  }
+
+  // ---------- Errors ----------
+  function describeError(err) {
+    const code = err && err.code;
+    switch (code) {
+      case "server_not_connected":
+      case "server_not_found":
+        return { title: "Google Sheets no está conectado", text: "Agrega el conector Google Sheets en claude.ai → Ajustes → Conectores y vuelve a abrir esta página." };
+      case "needs_reauth":
+        return { title: "Tu sesión de Google expiró", text: "Reconecta Google Sheets en claude.ai → Ajustes → Conectores." };
+      case "selection_required":
+        return { title: "Elige tu cuenta de Google Sheets", text: "Tienes más de una conexión de Google Sheets. Elige cuál usar en el aviso de claude.ai." };
+      case "approval_required":
+      case "not_in_manifest":
+      case "consent_required":
+        return { title: "Falta tu permiso", text: "Esta página necesita permiso para leer y escribir tu hoja de AstroFinance.", allow: true };
+      case "blocked_by_policy":
+        return { title: "Bloqueado por tu organización", text: "Tu organización no permite este conector aquí." };
+      case "server_unavailable":
+        return { title: "Google Sheets no respondió", text: "Suele ser momentáneo. Toca Actualizar en unos segundos.", retry: true };
+      case "tool_error":
+        return { title: "Google Sheets rechazó la operación", text: shortMessage(err) };
+      case "not_granted":
+      case "capability_disabled":
+      case "capability_removed":
+        return { title: "Conexión no disponible aquí", text: "Abre esta página en claude.ai para conectarla con tu hoja." };
+      default:
+        return { title: "No se pudo leer la hoja", text: shortMessage(err) || "Toca Actualizar para reintentar.", retry: true };
+    }
+  }
+  function shortMessage(err) {
+    const m = String((err && err.message) || "");
+    return m.length > 220 ? m.slice(0, 220) + "…" : m;
+  }
+
+  // ---------- MCP plumbing ----------
+  let unwatch = [];
+  function watchSheets() {
+    unwatch.forEach((u) => u()); unwatch = [];
+    const mcp = state.mcp;
+    const opts = { cache: { staleTime: 0, gcTime: 7 * 24 * 3600 * 1000 }, refetchInterval: 180000 };
+    unwatch.push(mcp.watchTool(SERVER, "get_values", { spreadsheetId: settings.sheetId, range: TXN_RANGE }, (ev) => {
+      if (ev.type === "data") {
+        try { state.txns = mapTransactions(valuesOf(ev.result)); state.txnError = null; }
+        catch (e) { state.txnError = { code: "parse", message: e.message }; }
+        state.updatedAt = ev.result.cache ? ev.result.cache.storedAt : Date.now();
+        state.revalidating = !!(ev.result.cache && ev.result.cache.revalidating);
+      } else {
+        const denial = ["needs_reauth", "server_not_connected", "blocked_by_policy", "approval_required", "not_in_manifest", "consent_required", "selection_required"].includes(ev.error.code);
+        if (denial) state.txns = null;
+        state.txnError = ev.error;
+      }
+      state.loading = false; setRefreshing(false); render();
+    }, opts));
+    unwatch.push(mcp.watchTool(SERVER, "get_values", { spreadsheetId: settings.sheetId, range: PAY_RANGE }, (ev) => {
+      if (ev.type === "data") {
+        try { state.payments = mapPayments(valuesOf(ev.result)); state.payError = null; }
+        catch (e) { state.payError = { code: "parse", message: e.message }; }
+      } else {
+        state.payError = ev.error;
+      }
+      render();
+    }, opts));
+  }
+
+  async function refresh() {
+    if (!state.mcp) return;
+    setRefreshing(true);
+    try { await state.mcp.invalidate(SERVER, "get_values"); }
+    catch { watchSheets(); }
+    setTimeout(() => setRefreshing(false), 15000);
+  }
+  function setRefreshing(on) { $("#refresh").classList.toggle("spin", on); }
+
+  // One explicit call: used when a watch reports missing consent, since only callTool can ask.
+  async function allowAccess() {
+    try {
+      await state.mcp.callTool(SERVER, "get_values", { spreadsheetId: settings.sheetId, range: "Transactions!A1:A1" }, { cache: false });
+      watchSheets();
+    } catch (e) { state.txnError = e; render(); }
+  }
+
+  async function sheetCall(tool, input) {
+    return state.mcp.callTool(SERVER, tool, input, { cache: false });
+  }
+
+  // Reads References and PaymentIDs right before writing, so a row moved or a
+  // payment set elsewhere is noticed instead of overwritten.
+  async function freshAssignments() {
+    const [refs, pids] = await Promise.all([
+      sheetCall("get_values", { spreadsheetId: settings.sheetId, range: "Transactions!A:A" }),
+      sheetCall("get_values", { spreadsheetId: settings.sheetId, range: `Transactions!${COL_PAYMENT}:${COL_PAYMENT}` }),
+    ]);
+    const refVals = valuesOf(refs), pidVals = valuesOf(pids);
+    const map = new Map();
+    refVals.forEach((r, i) => {
+      if (i === 0) return;
+      const ref = String((r && r[0]) ?? "").trim();
+      if (ref) map.set(ref, { row: i + 1, pid: String((pidVals[i] && pidVals[i][0]) ?? "").trim() });
+    });
+    return map;
+  }
+
+  // Writes one value into column `col` for each row, one call per run of consecutive rows.
+  async function writeColumn(col, rowValues) {
+    const rows = [...rowValues.keys()].sort((a, b) => a - b);
+    let i = 0;
+    while (i < rows.length) {
+      let j = i;
+      while (j + 1 < rows.length && rows[j + 1] === rows[j] + 1) j++;
+      const run = rows.slice(i, j + 1);
+      await sheetCall("update_values", {
+        spreadsheetId: settings.sheetId,
+        range: `Transactions!${col}${run[0]}:${col}${run[run.length - 1]}`,
+        values: run.map((r) => [rowValues.get(r)]),
+      });
+      i = j + 1;
+    }
+  }
+
+  // Same shape as AppSheet's UNIQUEID(); starts with a letter so Sheets never reads it as a number.
+  function newPaymentId() {
+    const hex = Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, "0")).join("");
+    return "abcdef"[Math.floor(Math.random() * 6)] + hex.slice(1);
+  }
+  function nowStamp() {
+    const d = new Date(); const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+
+  async function markPaid(txns, payment) {
+    const assignments = await freshAssignments();
+    const missing = txns.filter((t) => !assignments.has(t.ref));
+    if (missing.length) throw new Error(`La hoja cambió: no encuentro ${missing.map((t) => t.ref).join(", ")}. Actualiza e intenta de nuevo.`);
+    const taken = txns.filter((t) => assignments.get(t.ref).pid && assignments.get(t.ref).pid !== payment.id);
+    if (taken.length) throw new Error(`${taken.length} movimiento(s) ya tienen otro pago (marcado desde otro lado). Actualiza para verlos.`);
+    if (payment.isNew) {
+      await sheetCall("append_values", {
+        spreadsheetId: settings.sheetId,
+        range: PAY_RANGE,
+        values: [[payment.id, payment.date, payment.amount, payment.currency, payment.notes, nowStamp()]],
+      });
+    }
+    const writes = new Map(txns.map((t) => [assignments.get(t.ref).row, payment.id]));
+    await writeColumn(COL_PAYMENT, writes);
+  }
+
+  async function unmark(txns) {
+    const assignments = await freshAssignments();
+    const writes = new Map();
+    for (const t of txns) { const a = assignments.get(t.ref); if (a) writes.set(a.row, ""); }
+    await writeColumn(COL_PAYMENT, writes);
+  }
+
+  async function setCategory(txn, category) {
+    const assignments = await freshAssignments();
+    const a = assignments.get(txn.ref);
+    if (!a) throw new Error("La hoja cambió. Actualiza e intenta de nuevo.");
+    await writeColumn(COL_CATEGORY, new Map([[a.row, category]]));
+  }
+
+  // ---------- Derived data ----------
+  function inPeriod(t) {
+    const fam = familyOf(t);
+    if (state.brand && fam !== state.brand) return false;
+    const st = statementFor(fam);
+    if (!st) return true;
+    return t.date >= st.start && t.date <= st.end;
+  }
+  function matchesQuery(t) {
+    const q = state.query.trim().toLowerCase();
+    if (!q) return true;
+    return [t.merchant, t.description, t.location, t.holder, t.ref, t.auth, t.category, t.last, t.cardType, String(t.amount)]
+      .some((v) => String(v).toLowerCase().includes(q));
+  }
+  const byDateDesc = (a, b) => (b.date || "").localeCompare(a.date || "") || b.row - a.row;
+
+  // ---------- Rendering ----------
+  function render() {
+    renderChrome();
+    const main = $("#main");
+    if (state.mcp === null) {
+      main.innerHTML = notice({ title: "Abre AstroFinance en claude.ai", text: "Esta app lee y escribe tu hoja de Google a través de tu conector Google Sheets, que solo está disponible dentro de claude.ai." });
+      return;
+    }
+    if (state.txnError && !state.txns) {
+      main.innerHTML = notice(describeError(state.txnError), true);
+      return;
+    }
+    if (!state.txns) {
+      main.innerHTML = `<div class="summary">${'<div class="stat"><div class="label">Pendiente</div><div class="value num">…</div></div>'.repeat(2)}</div>` +
+        '<div class="skeleton"></div>'.repeat(6);
+      return;
+    }
+    const banner = state.txnError ? notice(describeError(state.txnError), true) : "";
+    if (state.tab === "pending") main.innerHTML = banner + renderPending();
+    else if (state.tab === "all") main.innerHTML = banner + renderAll();
+    else main.innerHTML = banner + renderPayments();
+    renderSelection();
+  }
+
+  function renderChrome() {
+    document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === state.tab ? "page" : "false"));
+    $("#periods").innerHTML = PERIODS.map((p) => `<button class="chip" type="button" data-period="${p.id}" aria-pressed="${p.id === state.period}">${p.label}</button>`).join("");
+    $("#periodLabel").textContent = state.period === "all" ? "Todos los movimientos"
+      : CARD_FAMILIES.filter((f) => !state.brand || f.id === state.brand).map((f) => {
+          const st = statementFor(f.id);
+          return `${f.short}: ${fmtDate(st.start)} – ${fmtDate(st.end)}`;
+        }).join(" · ");
+    const sync = $("#sync");
+    if (state.txnError && state.txns) sync.textContent = "Sin conexión · mostrando lo último";
+    else if (state.updatedAt) sync.textContent = (state.revalidating ? "Actualizando… · " : "") + "Actualizado " + ago(state.updatedAt);
+    const pendingCount = state.txns ? state.txns.filter((t) => !t.paymentId && inPeriod(t)).length : 0;
+    const badge = $("#pendingBadge");
+    badge.hidden = !pendingCount; badge.textContent = pendingCount;
+  }
+  function ago(ts) {
+    const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+    if (s < 60) return "ahora";
+    if (s < 3600) return `hace ${Math.round(s / 60)} min`;
+    if (s < 86400) return `hace ${Math.round(s / 3600)} h`;
+    return `hace ${Math.round(s / 86400)} d`;
+  }
+
+  function notice(info, isError) {
+    return `<div class="notice${isError ? " error" : ""}"><h3>${esc(info.title)}</h3><p>${esc(info.text)}</p>
+      ${info.allow ? '<button class="btn" type="button" data-action="allow">Permitir acceso</button>' : ""}
+      ${info.retry ? '<button class="btn secondary" type="button" data-action="refresh">Reintentar</button>' : ""}</div>`;
+  }
+
+  function txnRow(t, { selectable, showHolder, showStatus }) {
+    const sel = state.selected.has(t.ref);
+    const card = [t.cardType, t.last ? "••" + t.last : ""].filter(Boolean).join(" ");
+    return `<div class="row${sel ? " selected" : ""}">
+      ${selectable ? `<label class="pick"><input type="checkbox" data-pick="${esc(t.ref)}" ${sel ? "checked" : ""} aria-label="Seleccionar ${esc(t.merchant)}"></label>` : ""}
+      <button class="body" type="button" data-open="${esc(t.ref)}">
+        <span class="merchant">${esc(t.merchant)}</span>
+        <span class="amount num">${money(t.amount, t.currency)}</span>
+        <span class="meta"><span class="dot ${familyOf(t)}"></span>${fmtDate(t.date)} · <span class="card-tag">${esc(card)}</span>${showHolder ? " · " + esc(titleCase(t.holder)) : ""}${t.category ? ` <span class="pill cat">${esc(t.category)}</span>` : ""}</span>
+        <span class="side">${showStatus ? (t.paymentId ? '<span class="pill paid">Pagado</span>' : '<span class="pill pending">Pendiente</span>') : ""}</span>
+      </button>
+    </div>`;
+  }
+
+  function renderPending() {
+    const list = state.txns.filter((t) => !t.paymentId && inPeriod(t) && matchesQuery(t)).sort(byDateDesc);
+    const all = totalsByCurrency(list);
+    const groups = new Map();
+    for (const t of list) { if (!groups.has(t.holder)) groups.set(t.holder, []); groups.get(t.holder).push(t); }
+    const ordered = [...groups.entries()].sort((a, b) => sumCRC(b[1]) - sumCRC(a[1]));
+    let html = renderDueTiles();
+    if (state.brand) {
+      html += `<div class="filter-note">Solo ${esc(familyById(state.brand).name)} · ${list.length} pendiente${list.length === 1 ? "" : "s"} · <span class="num">${totalsText(all)}</span><button type="button" data-brand="${state.brand}">Ver todas</button></div>`;
+    }
+    if (!list.length) {
+      return html + `<div class="empty">${state.query ? "Nada coincide con tu búsqueda." : "No hay nada pendiente en este estado de cuenta."}</div>`;
+    }
+    for (const [holder, items] of ordered) {
+      const collapsed = state.collapsed.has(holder);
+      const allSel = items.every((t) => state.selected.has(t.ref));
+      html += `<section class="group${collapsed ? " collapsed" : ""}">
+        <button class="group-head" type="button" data-toggle="${esc(holder)}" aria-expanded="${!collapsed}">
+          <span class="name">${esc(titleCase(holder))}<small>${items.length} pendiente${items.length === 1 ? "" : "s"}</small></span>
+          <span class="totals num">${totalsText(totalsByCurrency(items), "<br>")}</span>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="rows">
+          <button class="select-all" type="button" data-selectall="${esc(holder)}">${allSel ? "Quitar selección" : "Seleccionar todos"}</button>
+          ${items.map((t) => txnRow(t, { selectable: true })).join("")}
+        </div>
+      </section>`;
+    }
+    return html;
+  }
+  // One tile per card family: when its next payment is due and what that statement holds.
+  function renderDueTiles() {
+    const tiles = CARD_FAMILIES.map((f) => {
+      const st = statementFor(f.id) || statement(f.id, nextStatementOffset(f.id));
+      const items = state.txns.filter((t) => familyOf(t) === f.id && t.date >= st.start && t.date <= st.end && matchesQuery(t));
+      const pending = items.filter((t) => !t.paymentId);
+      const days = daysUntil(st.due);
+      const cls = days < 0 ? "late" : days <= 5 ? "soon" : "";
+      const dueLine = days < 0 ? `Venció el ${fmtDate(st.due)}` : `Vence ${fmtDate(st.due)} · ${whenText(st.due)}`;
+      const closeLine = st.open ? `Cierra ${fmtDate(st.end)} (${whenText(st.end)})` : `Cerró ${fmtDate(st.end)}`;
+      return `<button class="due-tile" type="button" data-brand="${f.id}" aria-pressed="${state.brand === f.id}">
+        <span class="brand-name"><span class="dot ${f.id}"></span>${esc(f.name)}</span>
+        <span class="due-when ${cls}">${dueLine}</span>
+        <span class="value num">${totalsText(totalsByCurrency(items), "<br>")}</span>
+        <span class="sub">${closeLine} · ${pending.length ? `${pending.length} sin cobrar: <span class="num">${totalsText(totalsByCurrency(pending))}</span>` : "todo cobrado"}</span>
+      </button>`;
+    }).join("");
+    return `<div class="due-grid">${tiles}</div>`;
+  }
+
+  // Only orders the groups (biggest balance first); the USD rate is a rough guess.
+  function sumCRC(items) { return items.reduce((s, t) => s + (t.currency === "USD" ? t.amount * 500 : t.amount), 0); }
+
+  function renderAll() {
+    const holders = [...new Set(state.txns.map((t) => t.holder))].sort();
+    const list = state.txns.filter((t) => inPeriod(t) && matchesQuery(t)
+      && (!state.holder || t.holder === state.holder)
+      && (state.status === "all" || (state.status === "paid" ? t.paymentId : !t.paymentId))).sort(byDateDesc);
+    let html = `<div class="filters-row">
+      <select id="holderFilter" aria-label="Titular"><option value="">Todos los titulares</option>${holders.map((h) => `<option value="${esc(h)}" ${h === state.holder ? "selected" : ""}>${esc(titleCase(h))}</option>`).join("")}</select>
+      <select id="brandFilter" aria-label="Tarjeta"><option value="">Todas las tarjetas</option>${CARD_FAMILIES.map((f) => `<option value="${f.id}" ${f.id === state.brand ? "selected" : ""}>${esc(f.name)}</option>`).join("")}</select>
+      <select id="statusFilter" aria-label="Estado">
+        ${[["all", "Todos"], ["pending", "Pendientes"], ["paid", "Pagados"]].map(([v, l]) => `<option value="${v}" ${v === state.status ? "selected" : ""}>${l}</option>`).join("")}
+      </select>
+    </div>
+    <div class="summary"><div class="stat" style="grid-column: 1 / -1"><div class="label">Total en la vista</div><div class="value num">${totalsText(totalsByCurrency(list))}</div><div class="sub">${list.length} movimiento${list.length === 1 ? "" : "s"}</div></div></div>`;
+    if (!list.length) return html + `<div class="empty">No hay movimientos con estos filtros.</div>`;
+    html += `<section class="group">${list.map((t) => txnRow(t, { selectable: !t.paymentId, showHolder: !state.holder, showStatus: true })).join("")}</section>`;
+    return html;
+  }
+
+  function paymentStats(p) {
+    const covered = state.txns.filter((t) => t.paymentId === p.id);
+    const sameCur = covered.filter((t) => t.currency === p.currency);
+    const coveredSum = sameCur.reduce((s, t) => s + t.amount, 0);
+    return { covered, coveredSum, delta: p.amount - coveredSum };
+  }
+
+  function renderPayments() {
+    if (state.payError && !state.payments) return notice(describeError(state.payError), true);
+    if (!state.payments) return '<div class="skeleton"></div>'.repeat(4);
+    const q = state.query.trim().toLowerCase();
+    const list = state.payments.filter((p) => !q || [p.id, p.notes, String(p.amount)].some((v) => v.toLowerCase().includes(q)))
+      .sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.row - a.row);
+    if (!list.length) {
+      return `<div class="empty">${state.payments.length ? "Ningún pago coincide." : "Aún no hay pagos registrados. Selecciona movimientos pendientes y toca <strong>Marcar pagado</strong>."}</div>`;
+    }
+    return `<h2 class="section-title">${list.length} pago${list.length === 1 ? "" : "s"}</h2><section class="group">` + list.map((p) => {
+      const s = paymentStats(p);
+      const off = Math.abs(s.delta) >= 0.01;
+      return `<button class="pay-card" type="button" data-payment="${esc(p.id)}">
+        <span class="title">${fmtDate(p.date, true)}${p.notes ? " · " + esc(p.notes) : ""}</span>
+        <span class="num" style="text-align:right;font-weight:600">${money(p.amount, p.currency)}</span>
+        <span class="meta">${s.covered.length} movimiento${s.covered.length === 1 ? "" : "s"} · <span class="num">${esc(p.id)}</span></span>
+        <span class="meta num ${off ? "delta-off" : "delta-ok"}" style="text-align:right">${off ? (s.delta > 0 ? "Sobra " : "Falta ") + money(Math.abs(s.delta), p.currency) : "Cuadra"}</span>
+      </button>`;
+    }).join("") + "</section>";
+  }
+
+  function selectedTxns() { return state.txns ? state.txns.filter((t) => state.selected.has(t.ref)) : []; }
+  function renderSelection() {
+    for (const ref of [...state.selected]) {
+      const t = state.txns && state.txns.find((x) => x.ref === ref);
+      if (!t || t.paymentId) state.selected.delete(ref);
+    }
+    const sel = selectedTxns();
+    $("#selbar").hidden = !sel.length || state.tab === "payments";
+    $("#app").classList.toggle("has-selection", !!sel.length);
+    if (sel.length) {
+      $("#selTotal").textContent = totalsText(totalsByCurrency(sel));
+      $("#selCount").textContent = `${sel.length} seleccionado${sel.length === 1 ? "" : "s"}`;
+    }
+  }
+
+  // ---------- Sheets / modals ----------
+  function openModal(html, onMount) {
+    const host = $("#modal");
+    host.innerHTML = `<div class="scrim" data-close="1"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div></div>`;
+    host.querySelector(".scrim").addEventListener("click", (e) => { if (e.target.dataset.close) closeModal(); });
+    const first = host.querySelector("input, select, textarea, button.btn");
+    if (first) setTimeout(() => first.focus({ preventScroll: true }), 50);
+    if (onMount) onMount(host);
+  }
+  function closeModal() { $("#modal").innerHTML = ""; }
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+  function toast(text, isError) {
+    const host = $("#toastHost");
+    host.innerHTML = `<div class="toast${isError ? " error" : ""}" role="status">${esc(text)}</div>`;
+    clearTimeout(toast.t); toast.t = setTimeout(() => (host.innerHTML = ""), isError ? 6000 : 3000);
+  }
+
+  function writeErrorText(e) {
+    if (e && e.code) {
+      if (["server_unavailable", "upstream_error", "cancelled"].includes(e.code)) {
+        return "No hubo respuesta clara de Google Sheets; puede que el cambio sí se haya guardado. Actualiza y revisa antes de repetirlo.";
+      }
+      const d = describeError(e); return d.title + ". " + d.text;
+    }
+    return (e && e.message) || "No se pudo guardar.";
+  }
+
+  function openPay() {
+    const sel = selectedTxns();
+    if (!sel.length) return;
+    const totals = totalsByCurrency(sel);
+    const currencies = Object.keys(totals);
+    const cur = currencies.includes("CRC") ? "CRC" : currencies[0];
+    const recent = (state.payments || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 20);
+    openModal(`
+      <h2>Marcar como pagado</h2>
+      <p class="lede">${sel.length} movimiento${sel.length === 1 ? "" : "s"} · <span class="num">${totalsText(totals)}</span></p>
+      <div class="seg" role="group" aria-label="Tipo de pago">
+        <button type="button" id="modeNew" aria-pressed="true">Pago nuevo</button>
+        <button type="button" id="modeExisting" aria-pressed="false" ${recent.length ? "" : "disabled"}>Pago existente</button>
+      </div>
+      <form id="payForm" novalidate>
+        <div id="newFields">
+          <div class="field-row">
+            <div class="field"><label for="payAmount">Monto pagado</label><input id="payAmount" class="num" inputmode="decimal" value="${(totals[cur] || 0).toFixed(2)}"></div>
+            <div class="field"><label for="payCurrency">Moneda</label><select id="payCurrency">${["CRC", "USD"].map((c) => `<option ${c === cur ? "selected" : ""}>${c}</option>`).join("")}</select></div>
+          </div>
+          <div class="field"><label for="payDate">Fecha del pago</label><input id="payDate" type="date" value="${todayIso()}"></div>
+          <div class="field"><label for="payNotes">Nota (opcional)</label><input id="payNotes" placeholder="Ej. Transferencia BAC octubre"></div>
+        </div>
+        <div id="existingFields" hidden>
+          <div class="field"><label for="payExisting">Agregar al pago</label>
+            <select id="payExisting">${recent.map((p) => `<option value="${esc(p.id)}">${fmtDate(p.date, true)} · ${money(p.amount, p.currency)}${p.notes ? " · " + esc(p.notes) : ""}</option>`).join("")}</select>
+          </div>
+        </div>
+        <div class="form-error" id="payError" hidden></div>
+        <div class="actions">
+          <button class="btn secondary" type="button" id="payCancel">Cancelar</button>
+          <button class="btn" type="submit" id="paySubmit">Guardar en la hoja</button>
+        </div>
+      </form>`, (host) => {
+      let mode = "new";
+      const setMode = (m) => {
+        mode = m;
+        host.querySelector("#modeNew").setAttribute("aria-pressed", m === "new");
+        host.querySelector("#modeExisting").setAttribute("aria-pressed", m === "existing");
+        host.querySelector("#newFields").hidden = m !== "new";
+        host.querySelector("#existingFields").hidden = m !== "existing";
+      };
+      host.querySelector("#modeNew").onclick = () => setMode("new");
+      host.querySelector("#modeExisting").onclick = () => setMode("existing");
+      host.querySelector("#payCurrency").onchange = (e) => { host.querySelector("#payAmount").value = (totals[e.target.value] || 0).toFixed(2); };
+      host.querySelector("#payCancel").onclick = closeModal;
+      host.querySelector("#payForm").onsubmit = async (e) => {
+        e.preventDefault();
+        const errEl = host.querySelector("#payError");
+        errEl.hidden = true;
+        let payment;
+        if (mode === "new") {
+          const amount = parseAmount(host.querySelector("#payAmount").value);
+          const date = host.querySelector("#payDate").value;
+          if (!(amount > 0)) { errEl.textContent = "Escribe el monto pagado."; errEl.hidden = false; return; }
+          if (!date) { errEl.textContent = "Elige la fecha del pago."; errEl.hidden = false; return; }
+          payment = { isNew: true, id: newPaymentId(), amount, date, currency: host.querySelector("#payCurrency").value, notes: host.querySelector("#payNotes").value.trim() };
+        } else {
+          payment = { isNew: false, id: host.querySelector("#payExisting").value };
+        }
+        const btn = host.querySelector("#paySubmit");
+        btn.disabled = true; btn.textContent = "Guardando…";
+        try {
+          await markPaid(sel, payment);
+          state.selected.clear();
+          closeModal();
+          toast(`${sel.length} movimiento${sel.length === 1 ? "" : "s"} marcado${sel.length === 1 ? "" : "s"} como pagado`);
+          refresh();
+        } catch (err) {
+          errEl.textContent = writeErrorText(err); errEl.hidden = false;
+          btn.disabled = false; btn.textContent = "Guardar en la hoja";
+        }
+      };
+    });
+  }
+
+  function openTxn(ref) {
+    const t = state.txns.find((x) => x.ref === ref);
+    if (!t) return;
+    const payment = t.paymentId && state.payments ? state.payments.find((p) => p.id === t.paymentId) : null;
+    const categories = [...new Set(state.txns.map((x) => x.category).filter(Boolean))].sort();
+    const st = t.date ? statementOfDate(familyOf(t), t.date) : null;
+    openModal(`
+      <h2>${esc(t.merchant)}</h2>
+      <div class="big-amount num">${money(t.amount, t.currency)}</div>
+      ${t.paymentId ? `<span class="pill paid">Pagado${payment ? " el " + fmtDate(payment.date, true) : ""}</span>` : '<span class="pill pending">Pendiente</span>'}
+      <dl class="kv">
+        <dt>Fecha</dt><dd>${fmtDate(t.date, true)}</dd>
+        <dt>Titular</dt><dd>${esc(titleCase(t.holder))}</dd>
+        <dt>Tarjeta</dt><dd class="num">${esc(t.cardType)} ••${esc(t.last)}</dd>
+        ${st ? `<dt>Estado de cuenta</dt><dd>${fmtDate(st.start)} – ${fmtDate(st.end, true)} · vence ${fmtDate(st.due, true)}</dd>` : ""}
+        <dt>Tipo</dt><dd>${esc(t.description || "—")}</dd>
+        <dt>Lugar</dt><dd>${esc(t.location || "—")}</dd>
+        <dt>Referencia</dt><dd class="num">${esc(t.ref)}</dd>
+        <dt>Autorización</dt><dd class="num">${esc(t.auth || "—")}</dd>
+        ${t.paymentId ? `<dt>Pago</dt><dd class="num">${esc(t.paymentId)}</dd>` : ""}
+        ${t.permalink ? `<dt>Correo</dt><dd><a class="link" href="${esc(t.permalink)}" target="_blank" rel="noopener">Abrir en Gmail ↗</a></dd>` : ""}
+      </dl>
+      <form id="catForm" class="field" novalidate>
+        <label for="catInput">Categoría</label>
+        <div style="display:flex;gap:8px">
+          <input id="catInput" list="catList" value="${esc(t.category)}" placeholder="Ej. Supermercado" style="flex:1;min-width:0">
+          <datalist id="catList">${categories.map((c) => `<option value="${esc(c)}"></option>`).join("")}</datalist>
+          <button class="btn secondary" type="submit" id="catSave">Guardar</button>
+        </div>
+      </form>
+      <div class="form-error" id="txnError" hidden></div>
+      <div class="actions">
+        ${t.paymentId ? '<button class="btn danger" type="button" id="txnUnmark">Volver a pendiente</button>'
+          : '<button class="btn" type="button" id="txnPay">Marcar pagado</button>'}
+        <button class="btn secondary" type="button" id="txnClose">Cerrar</button>
+      </div>`, (host) => {
+      const errEl = host.querySelector("#txnError");
+      host.querySelector("#txnClose").onclick = closeModal;
+      host.querySelector("#catForm").onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = host.querySelector("#catSave");
+        btn.disabled = true; btn.textContent = "Guardando…";
+        try { await setCategory(t, host.querySelector("#catInput").value.trim()); toast("Categoría guardada"); closeModal(); refresh(); }
+        catch (err) { errEl.textContent = writeErrorText(err); errEl.hidden = false; btn.disabled = false; btn.textContent = "Guardar"; }
+      };
+      const unmarkBtn = host.querySelector("#txnUnmark");
+      if (unmarkBtn) unmarkBtn.onclick = () => confirmInline(unmarkBtn, "¿Seguro? Toca otra vez", async () => {
+        try { await unmark([t]); toast("Vuelve a estar pendiente"); closeModal(); refresh(); }
+        catch (err) { errEl.textContent = writeErrorText(err); errEl.hidden = false; }
+      });
+      const payBtn = host.querySelector("#txnPay");
+      if (payBtn) payBtn.onclick = () => { state.selected = new Set([t.ref]); closeModal(); openPay(); };
+    });
+  }
+
+  function openPayment(id) {
+    const p = state.payments.find((x) => x.id === id);
+    if (!p) return;
+    const s = paymentStats(p);
+    const off = Math.abs(s.delta) >= 0.01;
+    openModal(`
+      <h2>Pago del ${fmtDate(p.date, true)}</h2>
+      <div class="big-amount num">${money(p.amount, p.currency)}</div>
+      <p class="lede">${p.notes ? esc(p.notes) + " · " : ""}<span class="num">${esc(p.id)}</span></p>
+      <dl class="kv">
+        <dt>Cubre</dt><dd class="num">${money(s.coveredSum, p.currency)} en ${s.covered.length} movimiento${s.covered.length === 1 ? "" : "s"}</dd>
+        <dt>Diferencia</dt><dd class="num ${off ? "delta-off" : "delta-ok"}">${off ? (s.delta > 0 ? "Sobra " : "Falta ") + money(Math.abs(s.delta), p.currency) : "Cuadra exacto"}</dd>
+      </dl>
+      ${s.covered.length ? `<div class="mini-list">${s.covered.sort(byDateDesc).map((t) => txnRow(t, { showHolder: true })).join("")}</div>` : '<div class="empty">Este pago no tiene movimientos.</div>'}
+      <div class="form-error" id="pmError" hidden></div>
+      <div class="actions">
+        ${s.covered.length ? '<button class="btn danger" type="button" id="pmUnlink">Devolver todos a pendiente</button>' : ""}
+        <button class="btn secondary" type="button" id="pmClose">Cerrar</button>
+      </div>`, (host) => {
+      host.querySelector("#pmClose").onclick = closeModal;
+      host.querySelectorAll("[data-open]").forEach((b) => (b.onclick = () => openTxn(b.dataset.open)));
+      const unlink = host.querySelector("#pmUnlink");
+      if (unlink) unlink.onclick = () => confirmInline(unlink, `¿Seguro? ${s.covered.length} vuelven a pendiente`, async () => {
+        try { await unmark(s.covered); toast("Movimientos de vuelta en pendiente"); closeModal(); refresh(); }
+        catch (err) { const el = host.querySelector("#pmError"); el.textContent = writeErrorText(err); el.hidden = false; }
+      });
+    });
+  }
+
+  // Two-tap confirm, since the viewer has no confirm() dialog.
+  function confirmInline(btn, prompt, action) {
+    if (btn.dataset.armed) {
+      btn.disabled = true; btn.textContent = "Guardando…";
+      action().finally(() => { btn.disabled = false; });
+      return;
+    }
+    const original = btn.textContent;
+    btn.dataset.armed = "1"; btn.textContent = prompt;
+    setTimeout(() => { if (btn.isConnected && !btn.disabled) { delete btn.dataset.armed; btn.textContent = original; } }, 4000);
+  }
+
+  function openSettings() {
+    openModal(`
+      <h2>Ajustes</h2>
+      <p class="lede">Se guardan solo en este navegador.</p>
+      <form id="setForm" novalidate>
+        <div class="card-rules">
+          <span class="head">Tarjeta</span><span class="head">Día de corte</span><span class="head">Día de pago</span>
+          ${CARD_FAMILIES.map((f) => `<span class="who"><span class="dot ${f.id}"></span>${esc(f.name)}</span>
+            <input id="cut-${f.id}" type="number" min="1" max="31" inputmode="numeric" value="${settings.cards[f.id].cutoff}" aria-label="Día de corte ${esc(f.name)}">
+            <input id="pay-${f.id}" type="number" min="1" max="31" inputmode="numeric" value="${settings.cards[f.id].pay}" aria-label="Día de pago ${esc(f.name)}">`).join("")}
+        </div>
+        <div class="field"><label for="setSheet">ID de la hoja de Google</label><input id="setSheet" class="num" value="${esc(settings.sheetId)}"></div>
+        <div class="actions"><button class="btn secondary" type="button" id="setCancel">Cancelar</button><button class="btn" type="submit">Guardar</button></div>
+      </form>`, (host) => {
+      host.querySelector("#setCancel").onclick = closeModal;
+      host.querySelector("#setForm").onsubmit = (e) => {
+        e.preventDefault();
+        const clampDay = (v, d) => Math.min(31, Math.max(1, parseInt(v, 10) || d));
+        for (const f of CARD_FAMILIES) {
+          settings.cards[f.id] = {
+            cutoff: clampDay(host.querySelector("#cut-" + f.id).value, f.defaults.cutoff),
+            pay: clampDay(host.querySelector("#pay-" + f.id).value, f.defaults.pay),
+          };
+        }
+        store.set("cards", settings.cards);
+        const sheet = host.querySelector("#setSheet").value.trim() || DEFAULT_SHEET_ID;
+        const sheetChanged = sheet !== settings.sheetId;
+        settings.sheetId = sheet;
+        store.set("sheetId", sheet);
+        closeModal();
+        if (sheetChanged && state.mcp) { state.txns = null; state.payments = null; render(); watchSheets(); }
+        else render();
+      };
+    });
+  }
+
+  // ---------- Events ----------
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-tab],[data-period],[data-brand],[data-toggle],[data-selectall],[data-open],[data-payment],[data-action]");
+    if (!el || el.closest("#modal")) return;
+    if (el.dataset.tab) {
+      state.tab = el.dataset.tab; store.set("tab", state.tab);
+      try { history.replaceState(null, "", "#" + state.tab); } catch { /* ignore */ }
+      render(); window.scrollTo({ top: 0 });
+    } else if (el.dataset.period) {
+      state.period = el.dataset.period; store.set("period2", state.period); render();
+    } else if (el.dataset.brand) {
+      state.brand = state.brand === el.dataset.brand ? "" : el.dataset.brand; render();
+    } else if (el.dataset.toggle) {
+      const h = el.dataset.toggle;
+      state.collapsed.has(h) ? state.collapsed.delete(h) : state.collapsed.add(h);
+      store.set("collapsed", [...state.collapsed]); render();
+    } else if (el.dataset.selectall) {
+      const items = state.txns.filter((t) => t.holder === el.dataset.selectall && !t.paymentId && inPeriod(t) && matchesQuery(t));
+      const allSel = items.every((t) => state.selected.has(t.ref));
+      items.forEach((t) => (allSel ? state.selected.delete(t.ref) : state.selected.add(t.ref)));
+      render();
+    } else if (el.dataset.open) {
+      openTxn(el.dataset.open);
+    } else if (el.dataset.payment) {
+      openPayment(el.dataset.payment);
+    } else if (el.dataset.action === "allow") {
+      allowAccess();
+    } else if (el.dataset.action === "refresh") {
+      refresh();
+    } else if (el.dataset.action === "settings") {
+      openSettings();
+    }
+  });
+  document.addEventListener("change", (e) => {
+    if (e.target.matches("[data-pick]")) {
+      const ref = e.target.dataset.pick;
+      e.target.checked ? state.selected.add(ref) : state.selected.delete(ref);
+      render();
+    } else if (e.target.id === "holderFilter") { state.holder = e.target.value; render(); }
+    else if (e.target.id === "statusFilter") { state.status = e.target.value; render(); }
+    else if (e.target.id === "brandFilter") { state.brand = e.target.value; render(); }
+  });
+  let qTimer;
+  $("#q").addEventListener("input", (e) => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.query = e.target.value; render(); }, 120); });
+  $("#refresh").addEventListener("click", refresh);
+  $("#selClear").addEventListener("click", () => { state.selected.clear(); render(); });
+  $("#selPay").addEventListener("click", openPay);
+
+  // Settings link at the bottom of the main column.
+  const settingsBtn = document.createElement("button");
+  settingsBtn.className = "settings-link"; settingsBtn.type = "button"; settingsBtn.dataset.action = "settings";
+  settingsBtn.textContent = "Ajustes: días de corte y pago, hoja";
+  $("#app").appendChild(settingsBtn);
+
+  setInterval(renderChrome, 30000);
+
+  // ---------- Boot ----------
+  render();
+  const use = window.claude && window.claude.use ? window.claude.use("mcp") : Promise.resolve(null);
+  use.then((mcp) => {
+    state.mcp = mcp;
+    if (mcp) watchSheets();
+    render();
+  }).catch(() => { state.mcp = null; render(); });
+})();
+</script>
