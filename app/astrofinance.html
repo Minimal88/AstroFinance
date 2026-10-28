@@ -225,7 +225,7 @@ button { cursor: pointer; }
   padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
 }
-.tabbar nav { max-width: 720px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); height: var(--tabbar-h); }
+.tabbar nav { max-width: 720px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); height: var(--tabbar-h); }
 .tab { background: none; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--muted); font-size: 0.74rem; font-weight: 600; position: relative; }
 .tab[aria-current="page"] { color: var(--accent); }
 .tab .badge { position: absolute; top: 8px; left: calc(50% + 6px); background: var(--warn); color: var(--surface); font-size: 0.65rem; border-radius: 999px; padding: 1px 6px; font-family: var(--font-num); }
@@ -266,6 +266,29 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
   box-shadow: var(--shadow); max-width: calc(100% - 32px);
 }
 .toast.error { background: var(--danger); color: #fff; }
+
+/* Reconciliation */
+.upload {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  margin-top: 16px; padding: 22px 16px; border: 1.5px dashed var(--line); border-radius: var(--radius);
+  background: var(--surface); cursor: pointer;
+}
+.upload:focus-within { border-color: var(--accent); }
+.upload strong { font-size: 1rem; }
+.upload span { color: var(--muted); font-size: 0.84rem; }
+.upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.map-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 14px; }
+.map-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 0.76rem; color: var(--muted); font-weight: 600; min-width: 0; }
+.map-grid select { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); min-width: 0; }
+.recon-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+@media (max-width: 520px) { .recon-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.recon-summary .stat .value { font-size: 1.4rem; }
+.recon-summary .stat.bad .value { color: var(--warn); }
+.recon-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 11px 14px; border-top: 1px solid var(--line); }
+.recon-row:first-child { border-top: 0; }
+.recon-row .what { font-weight: 600; font-size: 0.9rem; overflow-wrap: anywhere; }
+.recon-row .meta { font-size: 0.78rem; color: var(--muted); grid-column: 1 / -1; overflow-wrap: anywhere; }
+.recon-row .why { font-size: 0.8rem; color: var(--warn); grid-column: 1 / -1; }
 
 .settings-link { display: block; margin: 24px auto 0; background: none; border: 0; color: var(--muted); font-size: 0.8rem; text-decoration: underline; }
 </style>
@@ -319,6 +342,10 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>
       Movimientos
     </button>
+    <button class="tab" type="button" data-tab="reconcile">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+      Conciliar
+    </button>
     <button class="tab" type="button" data-tab="payments">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
       Pagos
@@ -361,7 +388,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
   const familyById = (id) => CARD_FAMILIES.find((f) => f.id === id);
 
   const state = {
-    tab: ["pending", "all", "payments"].includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "pending"),
+    tab: ["pending", "all", "payments", "reconcile"].includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "pending"),
     period: ["next", "following", "previous", "all"].includes(store.get("period2", "")) ? store.get("period2") : "next",
     brand: "",
     query: "",
@@ -376,6 +403,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     updatedAt: null,
     loading: true,
     mcp: undefined,
+    recon: null, // { name, headers, rows, map, family }
   };
 
   // ---------- Helpers ----------
@@ -741,11 +769,13 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     const banner = state.txnError ? notice(describeError(state.txnError), true) : "";
     if (state.tab === "pending") main.innerHTML = banner + renderPending();
     else if (state.tab === "all") main.innerHTML = banner + renderAll();
+    else if (state.tab === "reconcile") main.innerHTML = banner + renderReconcile();
     else main.innerHTML = banner + renderPayments();
     renderSelection();
   }
 
   function renderChrome() {
+    document.querySelector(".controls").hidden = state.tab === "reconcile";
     document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === state.tab ? "page" : "false"));
     $("#periods").innerHTML = PERIODS.map((p) => `<button class="chip" type="button" data-period="${p.id}" aria-pressed="${p.id === state.period}">${p.label}</button>`).join("");
     $("#periodLabel").textContent = state.period === "all" ? "Todos los movimientos"
@@ -894,12 +924,198 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
       if (!t || t.paymentId) state.selected.delete(ref);
     }
     const sel = selectedTxns();
-    $("#selbar").hidden = !sel.length || state.tab === "payments";
+    $("#selbar").hidden = !sel.length || state.tab === "payments" || state.tab === "reconcile";
     $("#app").classList.toggle("has-selection", !!sel.length);
     if (sel.length) {
       $("#selTotal").textContent = totalsText(totalsByCurrency(sel));
       $("#selCount").textContent = `${sel.length} seleccionado${sel.length === 1 ? "" : "s"}`;
     }
+  }
+
+  // ---------- Reconciliation ----------
+  // Compares the bank's CSV export with the Sheet. Read-only: nothing is written.
+  const RECON_FIELDS = [
+    { id: "reference", label: "Referencia o autorización" },
+    { id: "amount", label: "Monto" },
+    { id: "date", label: "Fecha" },
+  ];
+  // Matched against lower-cased, accent-free headers; most specific first.
+  const RECON_KEYWORDS = {
+    reference: ["referencia", "reference", "comprobante", "autorizacion", "authorization", "documento", "ref"],
+    amount: ["monto", "importe", "amount", "valor", "debito", "debit", "cargo"],
+    date: ["fecha de transaccion", "fecha transaccion", "fecha de compra", "fecha", "transaction date", "date"],
+  };
+  const AMOUNT_TOLERANCE = 0.01;
+  const DATE_TOLERANCE_DAYS = 3; // banks often post a day or two after the email
+
+  const normHeader = (h) => String(h || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+  function parseCsv(text) {
+    text = text.replace(/^\uFEFF/, "");
+    const firstLine = text.split(/\r?\n/, 1)[0] || "";
+    const delimiter = [",", ";", "\t"].map((d) => [d, firstLine.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+    const rows = []; let row = [], cell = "", quoted = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (quoted) {
+        if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+        else if (ch === '"') quoted = false;
+        else cell += ch;
+      } else if (ch === '"') quoted = true;
+      else if (ch === delimiter) { row.push(cell); cell = ""; }
+      else if (ch === "\n" || ch === "\r") {
+        if (ch === "\r" && text[i + 1] === "\n") i++;
+        row.push(cell); rows.push(row); row = []; cell = "";
+      } else cell += ch;
+    }
+    if (cell || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter((r) => r.some((c) => c.trim()));
+  }
+
+  function guessColumns(headers) {
+    const taken = new Set(), map = {};
+    for (const f of RECON_FIELDS) {
+      map[f.id] = "";
+      for (const kw of RECON_KEYWORDS[f.id]) {
+        const hit = headers.find((h) => !taken.has(h) && normHeader(h).includes(kw));
+        if (hit) { map[f.id] = hit; taken.add(hit); break; }
+      }
+    }
+    return map;
+  }
+
+  // Bank exports in Costa Rica write day/month/year; ISO and month-first are also accepted.
+  function parseStatementDate(raw) {
+    const t = String(raw ?? "").trim();
+    let m = t.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (m) return iso(+m[1], +m[2], +m[3]);
+    m = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+    if (!m) return "";
+    let [a, b, y] = [+m[1], +m[2], +m[3]];
+    if (y < 100) y += 2000;
+    const [day, month] = b > 12 && a <= 12 ? [b, a] : [a, b];
+    if (month < 1 || month > 12 || day < 1 || day > 31) return "";
+    return iso(y, month, day);
+  }
+
+  function savedReconMap(headers) {
+    const saved = store.get("reconMap", null);
+    if (!saved || typeof saved !== "object") return null;
+    const ok = RECON_FIELDS.every((f) => !saved[f.id] || headers.includes(saved[f.id]));
+    return ok && RECON_FIELDS.some((f) => saved[f.id]) ? saved : null;
+  }
+
+  function loadStatement(file) {
+    const finish = (text) => {
+      const rows = parseCsv(text);
+      if (rows.length < 2) { toast("Ese archivo no tiene filas para comparar.", true); return; }
+      const headers = rows[0].map((h) => h.trim());
+      const body = rows.slice(1).map((r) => Object.fromEntries(headers.map((h, i) => [h, (r[i] ?? "").trim()])));
+      state.recon = { name: file.name, headers, rows: body, map: savedReconMap(headers) || guessColumns(headers), family: state.recon ? state.recon.family : "" };
+      render();
+    };
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || "");
+      // Exports from Excel in Spanish are often Windows-1252, not UTF-8.
+      if (text.includes("\uFFFD")) {
+        const latin = new FileReader();
+        latin.onload = () => finish(String(latin.result || ""));
+        latin.readAsText(file, "windows-1252");
+      } else finish(text);
+    };
+    reader.onerror = () => toast("No se pudo leer el archivo.", true);
+    reader.readAsText(file, "utf-8");
+  }
+
+  function reconcileStatement() {
+    const { rows, map, family } = state.recon;
+    const pool = state.txns.filter((t) => !family || familyOf(t) === family);
+    const byRef = new Map();
+    for (const t of pool) { byRef.set(t.ref, t); if (t.auth) byRef.set(t.auth, byRef.get(t.auth) || t); }
+    const matchedIds = new Set();
+    const report = { matched: [], mismatched: [], missingInSheet: [], missingInStatement: [], period: null };
+    const dates = [];
+
+    for (const row of rows) {
+      const reference = map.reference ? row[map.reference] || "" : "";
+      const amount = map.amount ? Math.abs(parseAmount(row[map.amount])) : null;
+      const rawAmount = map.amount ? String(row[map.amount] || "").trim() : "";
+      const date = map.date ? parseStatementDate(row[map.date]) : "";
+      if (date) dates.push(date);
+      const entry = { row, reference, amount: rawAmount ? amount : null, date };
+
+      let txn = reference ? byRef.get(reference) || null : null;
+      if (txn && matchedIds.has(txn.row)) {
+        report.mismatched.push({ ...entry, txn, reason: "La referencia aparece más de una vez en el estado." });
+        continue;
+      }
+      if (!txn && entry.amount != null && date) {
+        const lo = addDays(date, -DATE_TOLERANCE_DAYS), hi = addDays(date, DATE_TOLERANCE_DAYS);
+        txn = pool
+          .filter((t) => !matchedIds.has(t.row) && t.date >= lo && t.date <= hi && Math.abs(Math.abs(t.amount) - entry.amount) < AMOUNT_TOLERANCE)
+          .sort((a, b) => Math.abs(daysBetween(a.date, date)) - Math.abs(daysBetween(b.date, date)))[0] || null;
+      }
+      if (!txn) { report.missingInSheet.push(entry); continue; }
+      matchedIds.add(txn.row);
+      if (entry.amount != null && Math.abs(Math.abs(txn.amount) - entry.amount) >= AMOUNT_TOLERANCE) {
+        report.mismatched.push({ ...entry, txn, reason: `El monto no coincide: hoja ${money(txn.amount, txn.currency)}, estado ${money(entry.amount, txn.currency)}.` });
+      } else report.matched.push({ ...entry, txn });
+    }
+    if (dates.length) {
+      dates.sort();
+      report.period = [dates[0], dates[dates.length - 1]];
+      report.missingInStatement = pool
+        .filter((t) => !matchedIds.has(t.row) && t.date >= report.period[0] && t.date <= report.period[1])
+        .sort(byDateDesc);
+    }
+    return report;
+  }
+  function daysBetween(a, b) {
+    const [y1, m1, d1] = a.split("-").map(Number), [y2, m2, d2] = b.split("-").map(Number);
+    return Math.round((new Date(y1, m1 - 1, d1) - new Date(y2, m2 - 1, d2)) / 86400000);
+  }
+
+  function renderReconcile() {
+    let html = `<h2 class="section-title">Conciliar con el estado del banco</h2>
+      <p class="period-label">Sube el CSV que exportas del banco. Lo comparo con tu hoja aquí mismo; no se modifica nada.</p>
+      <label class="upload" for="reconFile">
+        <strong>${state.recon ? "Cambiar archivo" : "Elegir CSV del banco"}</strong>
+        <span>${state.recon ? esc(state.recon.name) + ` · ${state.recon.rows.length} filas` : "Separado por comas o punto y coma"}</span>
+        <input id="reconFile" type="file" accept=".csv,text/csv,text/plain">
+      </label>`;
+    if (!state.recon) return html;
+
+    const { headers, map, family } = state.recon;
+    const opts = (sel) => `<option value="">(ninguna)</option>` + headers.map((h) => `<option value="${esc(h)}" ${h === sel ? "selected" : ""}>${esc(h)}</option>`).join("");
+    html += `<div class="map-grid">
+      ${RECON_FIELDS.map((f) => `<label>Columna: ${f.label}<select data-recon-col="${f.id}">${opts(map[f.id])}</select></label>`).join("")}
+      <label>Tarjetas a comparar<select id="reconFamily"><option value="">Todas</option>${CARD_FAMILIES.map((f) => `<option value="${f.id}" ${f.id === family ? "selected" : ""}>${esc(f.name)}</option>`).join("")}</select></label>
+    </div>`;
+    if (!map.amount || !map.date) {
+      html += `<div class="notice" style="margin-top:12px"><p style="margin:0">Elige la columna de ${!map.amount ? "monto" : "fecha"}: sin ella solo puedo emparejar por referencia y no sé qué fechas cubre el estado.</p></div>`;
+    }
+    const r = reconcileStatement();
+    const stat = (label, n, bad) => `<div class="stat${bad && n ? " bad" : ""}"><div class="label">${label}</div><div class="value num">${n}</div></div>`;
+    html += `<div class="recon-summary">
+      ${stat("Coinciden", r.matched.length)}${stat("Con diferencias", r.mismatched.length, true)}
+      ${stat("No están en la hoja", r.missingInSheet.length, true)}${stat("No están en el estado", r.missingInStatement.length, true)}
+    </div>`;
+    if (r.period) html += `<p class="period-label" style="margin-top:8px">El estado cubre del ${fmtDate(r.period[0], true)} al ${fmtDate(r.period[1], true)}.</p>`;
+
+    const stmtRow = (e, extra = "") => `<div class="recon-row">
+      <span class="what">${e.txn ? esc(e.txn.merchant) : esc(Object.values(e.row).filter(Boolean).slice(0, 3).join(" · ") || "(fila vacía)")}</span>
+      <span class="num">${e.amount != null ? money(e.amount, e.txn ? e.txn.currency : "CRC") : ""}</span>
+      <span class="meta">${e.date ? fmtDate(e.date, true) : "sin fecha"}${e.reference ? " · ref " + esc(e.reference) : ""}${e.txn ? " · " + esc(titleCase(e.txn.holder)) : ""}</span>${extra}
+    </div>`;
+    const section = (title, items, row) => `<h2 class="section-title">${title} <span class="period-label">(${items.length})</span></h2>` +
+      (items.length ? `<section class="group">${items.map(row).join("")}</section>` : `<div class="empty">Nada aquí.</div>`);
+
+    html += section("Con diferencias", r.mismatched, (e) => stmtRow(e, `<span class="why">${esc(e.reason)}</span>`));
+    html += section("En el estado pero no en la hoja", r.missingInSheet, (e) => stmtRow(e));
+    html += section("En la hoja pero no en el estado", r.missingInStatement, (t) => txnRow(t, { showHolder: true, showStatus: true }));
+    html += section("Coinciden", r.matched, (e) => stmtRow(e));
+    return html;
   }
 
   // ---------- Sheets / modals ----------
@@ -1179,6 +1395,12 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     } else if (e.target.id === "holderFilter") { state.holder = e.target.value; render(); }
     else if (e.target.id === "statusFilter") { state.status = e.target.value; render(); }
     else if (e.target.id === "brandFilter") { state.brand = e.target.value; render(); }
+    else if (e.target.id === "reconFile" && e.target.files[0]) { loadStatement(e.target.files[0]); }
+    else if (e.target.dataset.reconCol && state.recon) {
+      state.recon.map = { ...state.recon.map, [e.target.dataset.reconCol]: e.target.value };
+      store.set("reconMap", state.recon.map); render();
+    }
+    else if (e.target.id === "reconFamily" && state.recon) { state.recon.family = e.target.value; render(); }
   });
   let qTimer;
   $("#q").addEventListener("input", (e) => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.query = e.target.value; render(); }, 120); });

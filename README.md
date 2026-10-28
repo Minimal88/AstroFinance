@@ -1,7 +1,8 @@
 # AstroFinance
 
 Tracks BAC credit-card transactions from Gmail notification emails, with a phone
-app for seeing what is due per card and marking charges as paid.
+app for seeing what is due per card, marking charges as paid and reconciling
+the bank statement.
 
 ```
 Gmail ──(Apps Script, 15-min trigger)──▶ Google Sheet ◀──(phone app: view + mark paid)
@@ -49,6 +50,15 @@ Google Sheets. The spreadsheet ID can be changed in the app's settings.
 - **Pagos**: each payment shows whether it matches the transactions it covers.
 - **Detail**: editable category, link to the original email, and "back to
   pending".
+- **Conciliar**: upload the bank's CSV export and compare it with the Sheet,
+  in the browser (nothing is written). The reference, amount and date columns
+  are guessed from the headers (Spanish or English, comma or semicolon
+  separated, UTF-8 or Windows-1252) and can be corrected; the choice is
+  remembered. Rows match by reference or authorization number first, then by
+  amount (±0.01, either sign) and date (±3 days, closest first). Each charge
+  matches at most one row. Results: matched, amount differences, rows missing
+  from the Sheet, and Sheet charges missing from the statement within the
+  statement's own dates, optionally limited to one card family.
 
 To change the app, edit the file and republish it to the same artifact.
 
