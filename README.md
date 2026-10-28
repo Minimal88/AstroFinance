@@ -83,7 +83,9 @@ To change the app, edit the file and republish it to the same artifact.
 [`app/amex-hannia.html`](app/amex-hannia.html) are read-only pages, each
 published as its own artifact. They show one Amex card's movements (paid or
 pending, with the payment date) grouped by Amex statement, plus the next
-payment and everything still pending. Nobody can mark payments from them.
+payment and everything still pending. They have the main app's period chips
+(Próximo pago, Siguiente estado, Estado anterior, Todo) plus Todos / Pendientes
+/ Pagados. Nobody can mark payments from them.
 
 - **Which rows**: by last digits and cardholder name (6074 + DERECK, 7311 +
   HANNIA), not by CardType, because some of Dereck's Amex emails were parsed as

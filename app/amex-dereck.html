@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
 <style id="css">
 /* Layout: one phone-width column. Header with the card, a next-payment tile,
-   status chips, then one group per Amex statement (newest first). Read only. */
+   period and status chips, then one group per Amex statement (newest first). Read only. */
 :root {
   --bg: #eef1f6;
   --surface: #ffffff;
@@ -69,7 +69,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .who { flex: 1; min-width: 0; }
 .who h1 { margin: 0; font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
 .who .sub { font-size: 0.78rem; color: var(--muted); }
-.chips { display: flex; gap: 6px; padding-block: 0 12px; flex-wrap: wrap; }
+.chips { display: flex; gap: 6px; padding: 2px; margin-inline: -2px; margin-bottom: 8px; overflow-x: auto; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; }
+.chips + .chips { margin-bottom: 10px; }
 .chip { border: 1px solid var(--line); background: var(--surface); color: var(--muted); padding: 6px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
 .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
@@ -130,7 +133,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
   const SKELETON_CLOSE = "\n</body></html>";
 
   const snapshot = readSnapshot();
-  const state = { filter: "all", live: null, mcp: undefined, liveError: null, canPublish: true, publishing: false, publishError: "" };
+  const PERIODS = [["next", "Próximo pago"], ["following", "Siguiente estado"], ["previous", "Estado anterior"], ["all", "Todo"]];
+  const savedPeriod = (() => { try { return localStorage.getItem("amex:period"); } catch { return null; } })();
+  const state = { period: PERIODS.some(([id]) => id === savedPeriod) ? savedPeriod : "next", filter: "all", live: null, mcp: undefined, liveError: null, canPublish: true, publishing: false, publishError: "" };
 
   // ---------- Helpers ----------
   const $ = (sel) => document.querySelector(sel);
@@ -207,6 +212,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
     for (let k = -2; k <= 1; k++) { const st = statementClosing(...shiftMonth(y, m, k)); if (st.due >= todayIso()) return st; }
     return statementClosing(y, m);
   }
+  // The statement the period chips point at; null for "Todo".
+  function selectedStatement() {
+    if (state.period === "all") return null;
+    const next = nextStatement();
+    const [y, m] = next.key.split("-").map(Number);
+    if (state.period === "following") return statementClosing(...shiftMonth(y, m, 1));
+    if (state.period === "previous") return statementClosing(...shiftMonth(y, m, -1));
+    return next;
+  }
   function daysUntil(isoDate) {
     const [y, m, d] = isoDate.split("-").map(Number);
     const [ty, tm, td] = todayIso().split("-").map(Number);
@@ -274,7 +288,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
           <div class="card-art" aria-hidden="true"></div>
           <div class="who"><h1>Amex de ${esc(VIEWER.name)}</h1><div class="sub">Tarjeta terminada en <span class="num">${esc(VIEWER.last)}</span>${updated ? " · " + esc(updated) : ""}</div></div>
         </div>
-        <div class="chips" role="group" aria-label="Filtrar por estado">
+        <div class="chips" role="group" aria-label="Estado de cuenta">
+          ${PERIODS.map(([id, label]) => `<button class="chip" type="button" data-period="${id}" aria-pressed="${state.period === id}">${label}</button>`).join("")}
+        </div>
+        <div class="chips" role="group" aria-label="Filtrar por pago">
           ${[["all", "Todos"], ["pending", "Pendientes"], ["paid", "Pagados"]].map(([id, label]) => `<button class="chip" type="button" data-filter="${id}" aria-pressed="${state.filter === id}">${label}</button>`).join("")}
         </div>
       </div></header>
@@ -317,8 +334,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
   }
 
   function groups(txns) {
-    const shown = txns.filter((t) => state.filter === "all" || (state.filter === "paid") === t.paid);
-    if (!shown.length) return `<div class="empty">${state.filter === "pending" ? "No hay nada pendiente." : "No hay movimientos con ese estado."}</div>`;
+    const sel = selectedStatement();
+    const shown = txns.filter((t) => (state.filter === "all" || (state.filter === "paid") === t.paid) && (!sel || (t.date >= sel.start && t.date <= sel.end)));
+    if (!shown.length) {
+      const where = sel ? ` en el estado del ${fmtDate(sel.start)} al ${fmtDate(sel.end, true)}` : "";
+      const what = state.filter === "pending" ? "No hay nada pendiente" : state.filter === "paid" ? "No hay nada pagado" : "No hay movimientos";
+      return `<div class="empty">${esc(what + where)}.</div>`;
+    }
     const byStatement = new Map();
     for (const t of shown) {
       const st = t.date ? statementOf(t.date) : { key: "", start: "", end: "", due: "" };
@@ -441,6 +463,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
   document.addEventListener("click", (e) => {
     const f = e.target.closest("[data-filter]");
     if (f) { state.filter = f.dataset.filter; render(); return; }
+    const pr = e.target.closest("[data-period]");
+    if (pr) { state.period = pr.dataset.period; try { localStorage.setItem("amex:period", state.period); } catch { /* storage unavailable */ } render(); return; }
     if (e.target.closest('[data-action="publish"]')) publish();
     if (e.target.closest('[data-action="connect"]')) connect();
   });
