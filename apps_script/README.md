@@ -4,8 +4,8 @@ Ingests BAC transaction notification emails from Gmail into a Google Sheet, on a
 15-minute timer, running on Google's infrastructure. No OAuth client, no refresh
 token, nothing that breaks when you change your Google password.
 
-The Sheet is the system of record. AppSheet reads it on your phone; the Python
-app mirrors it into SQLite for reconciliation and detailed filtering.
+The Sheet is the system of record. The phone app in [`app/`](../app) reads and
+writes it; the AppSheet setup below is the older alternative.
 
 ## Files
 
@@ -16,7 +16,7 @@ does not matter.
 |---|---|
 | `appsscript.json` | Manifest: timezone, V8 runtime, OAuth scopes |
 | `Config.gs` | Script Properties accessors, column contract, runtime budgets |
-| `Parser.gs` | Email HTML → transaction object (port of `astrofinance/parser.py`) |
+| `Parser.gs` | Email HTML → transaction object |
 | `SheetStore.gs` | `setupSheets()`, dedup set, batched appends |
 | `Ingest.gs` | `runIncrementalSync()`, backfill, trigger install |
 | `Tests.gs` | `runParserTests()` — 39 assertions; `debugParseLatest()` |
@@ -280,8 +280,8 @@ data, so an empty Sheet produces a useless first guess.
 21. View **Recent**: source `Recent`, grouped by `Currency` with SUM.
 22. View **Payments**: source Payments, sorted by `PaymentDate` desc.
 
-Exact billing-period maths deliberately stays in `astrofinance/billing.py`,
-where it has tests. A rolling 30 days is the right mobile affordance.
+Per-card statement dates (cutoff and due day) live in the phone app in
+[`app/`](../app); AppSheet only has the rolling 30 days.
 
 ### Onto the phone
 

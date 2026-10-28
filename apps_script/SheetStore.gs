@@ -159,7 +159,7 @@ function toErrorRow_(message, error) {
  * ignore or a transaction needing a human look, and nothing is silently wrong.
  *
  * The Reference goes in the message text because this tab has no Reference
- * column -- its header order is a contract with the Python client. That string
+ * column -- adding one would change its header order. That string
  * is what you paste into Ctrl+F on the Transactions tab to find the row.
  */
 function toWarningRow_(message, reference, warnings) {

@@ -3,11 +3,12 @@
  *
  * Secrets and per-install values live in Script Properties
  * (Project Settings -> Script Properties), not in this file. That is the
- * Apps Script equivalent of the Python side's .env.
+ * Apps Script equivalent of a .env file.
  */
 
-// Column order is the contract shared with astrofinance/sheets_client.py.
-// Apps Script writes positionally; Python reads by header name.
+// Column order is the contract shared with the phone app (app/astrofinance.html).
+// Apps Script writes positionally; the app reads by header name and writes
+// Category and PaymentID by column letter (L and M).
 const HEADERS = {
   Transactions: [
     'Reference',
