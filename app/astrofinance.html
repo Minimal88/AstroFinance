@@ -210,6 +210,7 @@ button { cursor: pointer; }
   display: flex; justify-content: center; pointer-events: none;
   padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px));
 }
+.selbar[hidden] { display: none; }
 .selbar-inner {
   pointer-events: auto; width: 100%; max-width: 696px; display: flex; align-items: center; gap: 10px;
   background: var(--fg); color: var(--bg); border-radius: 16px; padding: 10px 10px 10px 16px; box-shadow: var(--shadow);
@@ -289,6 +290,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
 .recon-row .what { font-weight: 600; font-size: 0.9rem; overflow-wrap: anywhere; }
 .recon-row .meta { font-size: 0.78rem; color: var(--muted); grid-column: 1 / -1; overflow-wrap: anywhere; }
 .recon-row .why { font-size: 0.8rem; color: var(--warn); grid-column: 1 / -1; }
+.recon-row .note { font-size: 0.8rem; color: var(--muted); grid-column: 1 / -1; }
 
 .settings-link { display: block; margin: 24px auto 0; background: none; border: 0; color: var(--muted); font-size: 0.8rem; text-decoration: underline; }
 </style>
@@ -1009,9 +1011,11 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     const finish = (text) => {
       const rows = parseCsv(text);
       if (rows.length < 2) { toast("Ese archivo no tiene filas para comparar.", true); return; }
+      const bac = parseBacStatement(rows);
+      if (bac) { state.recon = { name: file.name, kind: "bac", ...bac }; render(); return; }
       const headers = rows[0].map((h) => h.trim());
       const body = rows.slice(1).map((r) => Object.fromEntries(headers.map((h, i) => [h, (r[i] ?? "").trim()])));
-      state.recon = { name: file.name, headers, rows: body, map: savedReconMap(headers) || guessColumns(headers), family: state.recon ? state.recon.family : "" };
+      state.recon = { name: file.name, kind: "table", headers, rows: body, map: savedReconMap(headers) || guessColumns(headers), family: state.recon ? state.recon.family || "" : "" };
       render();
     };
     const reader = new FileReader();
@@ -1026,6 +1030,147 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     };
     reader.onerror = () => toast("No se pudo leer el archivo.", true);
     reader.readAsText(file, "utf-8");
+  }
+
+  // ----- BAC "Transacciones del mes" export -----
+  // Not a flat table: a summary line (card, cutoff, due date, minimum and cash
+  // payment), then "Date, , Local, Dollars" and one line per movement. Card
+  // numbers on their own line start each card's section. Colones and dollars
+  // are separate columns, and the description is the merchant padded to 25
+  // characters followed by the location.
+  const CARD_LINE = /^\d{4}-\d{2}\*\*-\*{4}-(\d{4})$/;
+  function parseBacStatement(rows) {
+    const cells = rows.map((r) => r.map((c) => String(c ?? "").trim()));
+    const start = cells.findIndex((r) => normHeader(r[0]) === "date" && /local/i.test(r[2] || "") && /dollar/i.test(r[3] || ""));
+    if (start < 1) return null;
+    const head = cells[0].map(normHeader), vals = cells[1] || [];
+    const pick = (re, fallback) => { const i = head.findIndex((h) => re.test(h)); return vals[i >= 0 ? i : fallback] || ""; };
+    const cardMatch = (vals[0] || "").match(CARD_LINE);
+    const meta = {
+      card: cardMatch ? cardMatch[1] : "",
+      holder: (vals[1] || "").replace("/", " "),
+      cutoff: parseStatementDate(pick(/^date$/, 2)),
+      due: parseStatementDate(pick(/minimum.*due/, 3)),
+      minimum: { CRC: parseAmount(pick(/minimum.*local/, 4)), USD: parseAmount(pick(/minimum.*dollar/, 5)) },
+      cash: { CRC: parseAmount(pick(/cash.*local/, 7)), USD: parseAmount(pick(/cash.*dollar/, 8)) },
+      previous: null,
+      balance: null,
+      interest: null,
+    };
+    const entries = [];
+    let card = meta.card;
+    for (let i = start + 1; i < cells.length; i++) {
+      const [d = "", desc = "", local = "", usd = ""] = cells[i];
+      if (/current interest/i.test(d)) {
+        const n = (cells[i + 1] || []).map(parseAmount);
+        meta.interest = { CRC: n[0] || 0, USD: n[1] || 0 };
+        meta.balance = { CRC: n[2] || 0, USD: n[3] || 0 };
+        break;
+      }
+      const cardRow = !d && desc.match(CARD_LINE);
+      if (cardRow) { card = cardRow[1]; continue; }
+      if (!d && /^previous balance/i.test(desc)) { meta.previous = { CRC: parseAmount(local), USD: parseAmount(usd) }; continue; }
+      const date = parseStatementDate(d);
+      for (const [currency, raw] of [["CRC", local], ["USD", usd]]) {
+        const amount = parseAmount(raw);
+        if (!amount) continue;
+        entries.push({ id: entries.length, date, card, currency, amount, desc, name: bacName(desc), kind: bacKind(desc, date, amount) });
+      }
+    }
+    if (!entries.length && !meta.cutoff) return null;
+    return { meta, entries };
+  }
+  function bacName(desc) {
+    const cuota = desc.match(/^(.*?)\s+CUOTA:?\s*(\d+)\/(\d+)/i);
+    if (cuota) return `${cuota[1].trim()} · cuota ${+cuota[2]} de ${+cuota[3]}`;
+    if (/^IVA\s*-/i.test(desc)) return "IVA · " + desc.replace(/^IVA\s*-/i, "").split("-")[0].trim();
+    // The merchant is padded to 25 characters and followed by the location;
+    // long reference numbers (airline tickets) are dropped.
+    const name = /\s{2,}/.test(desc) ? desc.split(/\s{2,}/)[0] : desc.slice(0, 25);
+    return name.replace(/\s*\d{6,}.*$/, "").trim() || desc.trim();
+  }
+  function bacKind(desc, date, amount) {
+    if (/PAGO RECIBIDO|SU PAGO/i.test(desc)) return "payment";
+    if (/^IVA\s*-/i.test(desc) || /CUOTA:?\s*\d+\/\d+/i.test(desc) || /INTERES|COMISION|ANUALIDAD|MEMBRESIA|CARGO POR/i.test(desc) || !date) return "fee";
+    return amount < 0 ? "payment" : "purchase";
+  }
+
+  // Words that say nothing about who the merchant is.
+  const NAME_NOISE = new Set(["DLC", "BKG", "THE", "INC", "COM", "WWW", "HTTPS", "GOOGLE", "PAYPAL", "AMZN", "CAFE", "SUPER", "MARKET", "REST", "RESTAURANTE", "HOTEL", "PLAZA", "SAN", "JOSE", "CENTRAL", "DEL", "LAS", "LOS"]);
+  function nameTokens(s) {
+    return String(s || "").toUpperCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^A-Z0-9]+/g, " ")
+      .split(" ").filter((w) => w.length >= 3 && !NAME_NOISE.has(w) && !/^\d+$/.test(w));
+  }
+  function similarNames(a, b) {
+    const ta = nameTokens(a), tb = nameTokens(b);
+    return ta.some((x) => tb.some((y) => x === y || (x.length >= 5 && y.length >= 5 && x.slice(0, 5) === y.slice(0, 5))));
+  }
+  const sumOf = (list) => list.reduce((s, e) => s + e.amount, 0);
+  const sameAmount = (a, b) => Math.abs(Math.abs(a) - Math.abs(b)) < AMOUNT_TOLERANCE;
+
+  function reconcileBac() {
+    const { meta, entries } = state.recon;
+    const purchases = entries.filter((e) => e.kind === "purchase");
+    const cards = new Set(entries.map((e) => e.card).filter(Boolean));
+    if (meta.card) cards.add(meta.card);
+    const dates = purchases.map((e) => e.date).filter(Boolean).sort();
+    const cutoff = meta.cutoff || dates[dates.length - 1] || todayIso();
+    const [cy, cm, cd] = cutoff.split("-").map(Number);
+    const windowStart = addDays(cutoffFor(...shiftMonth(cy, cm, -1), cd), 1);
+    const lo = addDays(dates[0] && dates[0] < windowStart ? dates[0] : windowStart, -DATE_TOLERANCE_DAYS);
+    const hi = addDays(cutoff, DATE_TOLERANCE_DAYS);
+    const pool = state.txns.filter((t) => cards.has(String(t.last)) && t.date >= lo && t.date <= hi && t.amount);
+
+    const usedTxn = new Set(), usedEntry = new Set();
+    const report = { matched: [], mismatched: [], missingInSheet: [], missingInStatement: [], nextStatement: [], fees: [], payments: [], cutoff, windowStart };
+    const near = (t, e) => String(t.last) === e.card && e.date && Math.abs(daysBetween(t.date, e.date)) <= DATE_TOLERANCE_DAYS;
+    const take = (txn, group) => { usedTxn.add(txn.row); group.forEach((e) => usedEntry.add(e.id)); };
+    const freeEntries = () => purchases.filter((e) => !usedEntry.has(e.id));
+    const freeTxns = () => pool.filter((t) => !usedTxn.has(t.row));
+
+    // 1. Same amount and currency within a few days; a similar name wins ties.
+    for (const strict of [true, false]) {
+      for (const e of freeEntries()) {
+        const best = freeTxns()
+          .filter((t) => near(t, e) && t.currency === e.currency && sameAmount(t.amount, e.amount) && (!strict || similarNames(t.merchant, e.name)))
+          .sort((a, b) => Math.abs(daysBetween(a.date, e.date)) - Math.abs(daysBetween(b.date, e.date)))[0];
+        if (best) { take(best, [e]); report.matched.push({ txn: best, entries: [e] }); }
+      }
+    }
+    // 2. One email, several bank lines (e.g. one ticket per passenger).
+    for (const t of freeTxns()) {
+      const cands = freeEntries().filter((e) => near(t, e) && e.currency === t.currency && similarNames(t.merchant, e.name));
+      const byDate = Object.values(cands.reduce((m, e) => ((m[e.date] = m[e.date] || []).push(e), m), {}));
+      const group = [cands, ...byDate].find((g) => g.length > 1 && sameAmount(sumOf(g), t.amount));
+      if (group) { take(t, group); report.matched.push({ txn: t, entries: group, note: `${group.length} cargos en el estado suman lo mismo.` }); }
+    }
+    // 3. Charged in a different currency than the email (EUR -> USD, ₡ -> $).
+    for (const t of freeTxns()) {
+      const group = freeEntries().filter((e) => near(t, e) && e.currency !== t.currency && similarNames(t.merchant, e.name));
+      if (group.length) {
+        take(t, group);
+        const total = totalsText(totalsByCurrency(group));
+        report.matched.push({ txn: t, entries: group, note: `El correo dice ${money(t.amount, t.currency)}; el banco lo cobró como ${total}.` });
+      }
+    }
+    // 4. Same merchant and day, different amount.
+    for (const e of freeEntries()) {
+      const t = freeTxns().filter((x) => near(x, e) && x.currency === e.currency && similarNames(x.merchant, e.name))
+        .sort((a, b) => Math.abs(daysBetween(a.date, e.date)) - Math.abs(daysBetween(b.date, e.date)))[0];
+      if (t) {
+        take(t, [e]);
+        report.mismatched.push({ txn: t, entries: [e], warn: true, note: `La hoja dice ${money(t.amount, t.currency)} y el banco ${money(e.amount, e.currency)} (diferencia ${money(e.amount - t.amount, e.currency)}).` });
+      }
+    }
+    report.missingInSheet = freeEntries();
+    const lastPosted = dates[dates.length - 1] || cutoff;
+    for (const t of freeTxns().filter((x) => x.date >= windowStart && x.date <= cutoff).sort(byDateDesc)) {
+      // Purchases from the last days before the cutoff often post after it.
+      (t.date > lastPosted ? report.nextStatement : report.missingInStatement).push(t);
+    }
+    report.fees = entries.filter((e) => e.kind === "fee");
+    report.payments = entries.filter((e) => e.kind === "payment");
+    return report;
   }
 
   function reconcileStatement() {
@@ -1076,16 +1221,63 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     return Math.round((new Date(y1, m1 - 1, d1) - new Date(y2, m2 - 1, d2)) / 86400000);
   }
 
+  const reconStat = (label, n, bad) => `<div class="stat${bad && n ? " bad" : ""}"><div class="label">${label}</div><div class="value num">${n}</div></div>`;
+  const reconSection = (title, items, row, note = "") => `<h2 class="section-title">${title} <span class="period-label">(${items.length})</span></h2>` +
+    (note && items.length ? `<p class="period-label" style="margin:-4px 0 8px">${note}</p>` : "") +
+    (items.length ? `<section class="group">${items.map(row).join("")}</section>` : `<div class="empty">Nada aquí.</div>`);
+
   function renderReconcile() {
     let html = `<h2 class="section-title">Conciliar con el estado del banco</h2>
-      <p class="period-label">Sube el CSV que exportas del banco. Lo comparo con tu hoja aquí mismo; no se modifica nada.</p>
+      <p class="period-label">Sube el CSV de “Transacciones del mes” del BAC (u otro CSV del banco). Lo comparo con tu hoja aquí mismo; no se modifica nada.</p>
       <label class="upload" for="reconFile">
         <strong>${state.recon ? "Cambiar archivo" : "Elegir CSV del banco"}</strong>
-        <span>${state.recon ? esc(state.recon.name) + ` · ${state.recon.rows.length} filas` : "Separado por comas o punto y coma"}</span>
+        <span>${state.recon ? esc(state.recon.name) + (state.recon.kind === "bac" ? ` · ${state.recon.entries.length} movimientos` : ` · ${state.recon.rows.length} filas`) : "Separado por comas o punto y coma"}</span>
         <input id="reconFile" type="file" accept=".csv,text/csv,text/plain">
       </label>`;
     if (!state.recon) return html;
+    return html + (state.recon.kind === "bac" ? renderBacReconcile() : renderTableReconcile());
+  }
 
+  function renderBacReconcile() {
+    const { meta } = state.recon;
+    const r = reconcileBac();
+    const pair = (o) => (o ? totalsText(Object.fromEntries(Object.entries(o).filter(([, v]) => v)), " + ") : "—");
+    const cards = [...new Set(state.recon.entries.map((e) => e.card).filter(Boolean))];
+    let html = `<div class="notice" style="margin-top:14px">
+      <h3>Estado BAC · tarjeta ••${esc(meta.card || "?")}</h3>
+      <p style="margin:0 0 6px">Corte ${fmtDate(meta.cutoff, true)} · cubre del ${fmtDate(r.windowStart, true)} al ${fmtDate(r.cutoff, true)}${cards.length > 1 ? ` · tarjetas ${cards.map((c) => "••" + esc(c)).join(", ")}` : ""}</p>
+      <p style="margin:0 0 6px">Pago de contado <strong class="num">${pair(meta.cash)}</strong>${meta.due ? ` antes del ${fmtDate(meta.due, true)} (${whenText(meta.due)})` : ""}</p>
+      <p style="margin:0">Pago mínimo <span class="num">${pair(meta.minimum)}</span>${meta.interest && (meta.interest.CRC || meta.interest.USD) ? ` · intereses si pagas solo el mínimo <span class="num">${pair(meta.interest)}</span>` : ""}</p>
+    </div>`;
+    html += `<div class="recon-summary">
+      ${reconStat("Coinciden", r.matched.length)}${reconStat("Con diferencias", r.mismatched.length, true)}
+      ${reconStat("Solo en el banco", r.missingInSheet.length, true)}${reconStat("Solo en la hoja", r.missingInStatement.length, true)}
+    </div>`;
+
+    const entryText = (list) => list.map((e) => `${esc(e.name)} ${money(e.amount, e.currency)}`).join(" + ");
+    const entryRow = (e) => `<div class="recon-row">
+      <span class="what">${esc(e.name)}</span><span class="num">${money(e.amount, e.currency)}</span>
+      <span class="meta">${e.date ? fmtDate(e.date, true) : "sin fecha"}${e.card ? " · ••" + esc(e.card) : ""}</span>
+    </div>`;
+    const pairRow = (m) => `<div class="recon-row">
+      <span class="what">${esc(m.txn.merchant)}</span><span class="num">${money(m.txn.amount, m.txn.currency)}</span>
+      <span class="meta">${fmtDate(m.txn.date, true)} · ••${esc(m.txn.last)} · ${esc(titleCase(m.txn.holder))} · banco: ${entryText(m.entries)}</span>
+      ${m.note ? `<span class="${m.warn ? "why" : "note"}">${esc(m.note)}</span>` : ""}
+    </div>`;
+    const totalsNote = (list) => `Total <span class="num">${totalsText(totalsByCurrency(list))}</span>`;
+
+    html += reconSection("Con diferencias", r.mismatched, pairRow);
+    html += reconSection("En el estado pero no en la hoja", r.missingInSheet, entryRow, "Compras que el banco cobró y que no llegaron por correo (o llegaron con otro monto o fecha).");
+    html += reconSection("En la hoja pero no en el estado", r.missingInStatement, (t) => txnRow(t, { showHolder: true, showStatus: true }), "Correos de este periodo sin cargo en el estado: posibles duplicados, reversiones o cargos que el banco aún no aplica.");
+    html += reconSection("Probablemente en el próximo estado", r.nextStatement, (t) => txnRow(t, { showHolder: true, showStatus: true }), "Son de los últimos días antes del corte y el banco todavía no las había aplicado.");
+    html += reconSection("Cargos e impuestos del banco", r.fees, entryRow, totalsNote(r.fees) + " · IVA de servicios digitales, cuotas e intereses. No vienen en los correos.");
+    html += reconSection("Pagos que recibió el banco", r.payments, entryRow, r.payments.length ? totalsNote(r.payments) : "");
+    html += reconSection("Coinciden", r.matched, pairRow);
+    return html;
+  }
+
+  function renderTableReconcile() {
+    let html = "";
     const { headers, map, family } = state.recon;
     const opts = (sel) => `<option value="">(ninguna)</option>` + headers.map((h) => `<option value="${esc(h)}" ${h === sel ? "selected" : ""}>${esc(h)}</option>`).join("");
     html += `<div class="map-grid">
@@ -1096,10 +1288,9 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
       html += `<div class="notice" style="margin-top:12px"><p style="margin:0">Elige la columna de ${!map.amount ? "monto" : "fecha"}: sin ella solo puedo emparejar por referencia y no sé qué fechas cubre el estado.</p></div>`;
     }
     const r = reconcileStatement();
-    const stat = (label, n, bad) => `<div class="stat${bad && n ? " bad" : ""}"><div class="label">${label}</div><div class="value num">${n}</div></div>`;
     html += `<div class="recon-summary">
-      ${stat("Coinciden", r.matched.length)}${stat("Con diferencias", r.mismatched.length, true)}
-      ${stat("No están en la hoja", r.missingInSheet.length, true)}${stat("No están en el estado", r.missingInStatement.length, true)}
+      ${reconStat("Coinciden", r.matched.length)}${reconStat("Con diferencias", r.mismatched.length, true)}
+      ${reconStat("No están en la hoja", r.missingInSheet.length, true)}${reconStat("No están en el estado", r.missingInStatement.length, true)}
     </div>`;
     if (r.period) html += `<p class="period-label" style="margin-top:8px">El estado cubre del ${fmtDate(r.period[0], true)} al ${fmtDate(r.period[1], true)}.</p>`;
 
@@ -1108,13 +1299,10 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
       <span class="num">${e.amount != null ? money(e.amount, e.txn ? e.txn.currency : "CRC") : ""}</span>
       <span class="meta">${e.date ? fmtDate(e.date, true) : "sin fecha"}${e.reference ? " · ref " + esc(e.reference) : ""}${e.txn ? " · " + esc(titleCase(e.txn.holder)) : ""}</span>${extra}
     </div>`;
-    const section = (title, items, row) => `<h2 class="section-title">${title} <span class="period-label">(${items.length})</span></h2>` +
-      (items.length ? `<section class="group">${items.map(row).join("")}</section>` : `<div class="empty">Nada aquí.</div>`);
-
-    html += section("Con diferencias", r.mismatched, (e) => stmtRow(e, `<span class="why">${esc(e.reason)}</span>`));
-    html += section("En el estado pero no en la hoja", r.missingInSheet, (e) => stmtRow(e));
-    html += section("En la hoja pero no en el estado", r.missingInStatement, (t) => txnRow(t, { showHolder: true, showStatus: true }));
-    html += section("Coinciden", r.matched, (e) => stmtRow(e));
+    html += reconSection("Con diferencias", r.mismatched, (e) => stmtRow(e, `<span class="why">${esc(e.reason)}</span>`));
+    html += reconSection("En el estado pero no en la hoja", r.missingInSheet, (e) => stmtRow(e));
+    html += reconSection("En la hoja pero no en el estado", r.missingInStatement, (t) => txnRow(t, { showHolder: true, showStatus: true }));
+    html += reconSection("Coinciden", r.matched, (e) => stmtRow(e));
     return html;
   }
 

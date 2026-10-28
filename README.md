@@ -51,14 +51,24 @@ Google Sheets. The spreadsheet ID can be changed in the app's settings.
 - **Detail**: editable category, link to the original email, and "back to
   pending".
 - **Conciliar**: upload the bank's CSV export and compare it with the Sheet,
-  in the browser (nothing is written). The reference, amount and date columns
-  are guessed from the headers (Spanish or English, comma or semicolon
-  separated, UTF-8 or Windows-1252) and can be corrected; the choice is
-  remembered. Rows match by reference or authorization number first, then by
-  amount (±0.01, either sign) and date (±3 days, closest first). Each charge
-  matches at most one row. Results: matched, amount differences, rows missing
-  from the Sheet, and Sheet charges missing from the statement within the
-  statement's own dates, optionally limited to one card family.
+  in the browser (nothing is written).
+  - **BAC "Transacciones del mes"** is detected automatically. The app reads
+    the summary (card, cutoff, due date, cash and minimum payment), the
+    colones and dollars columns, and the card sections. Charges are matched
+    to the Sheet by card, currency, amount and date (±3 days, similar
+    merchant name first). It also pairs one email with several bank lines
+    that add up to it (one airline ticket per passenger), and an email in
+    another currency with what the bank charged (EUR or ₡ billed in USD).
+    The same merchant on the same day with a different amount is flagged as
+    a difference. IVA, installments, interest and payments are listed on
+    their own. Sheet charges from the statement period with no bank line are
+    listed, and those after the last posted charge go under "probably in the
+    next statement".
+  - **Any other CSV**: the reference, amount and date columns are guessed
+    from the headers (Spanish or English, comma or semicolon separated,
+    UTF-8 or Windows-1252) and can be corrected; the choice is remembered.
+    Rows match by reference or authorization number first, then by amount
+    (±0.01) and date (±3 days).
 
 To change the app, edit the file and republish it to the same artifact.
 
