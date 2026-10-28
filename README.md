@@ -77,6 +77,26 @@ Google Sheets. The spreadsheet ID can be changed in the app's settings.
 
 To change the app, edit the file and republish it to the same artifact.
 
+## Amex pages for Dereck and Hannia
+
+[`app/amex-dereck.html`](app/amex-dereck.html) and
+[`app/amex-hannia.html`](app/amex-hannia.html) are read-only pages, each
+published as its own artifact. They show one Amex card's movements (paid or
+pending, with the payment date) grouped by Amex statement, plus the next
+payment and everything still pending. Nobody can mark payments from them.
+
+- **Which rows**: by last digits and cardholder name (6074 + DERECK, 7311 +
+  HANNIA), not by CardType, because some of Dereck's Amex emails were parsed as
+  MASTER.
+- **No sheet access for them**: the page keeps a copy of that card's rows
+  inside itself. When the owner opens it, it reads the Sheet live through the
+  owner's Google Sheets connector and, if anything changed, offers
+  "Publicar para Dereck/Hannia", which republishes the page with the new copy.
+  Dereck and Hannia only ever see that published copy, never the Sheet.
+- The two files are identical except for the `VIEWER` line and the title. The
+  files in the repo carry no data (`snapshot` is `null`), so republishing one
+  from the repo empties it until the owner taps "Publicar" again.
+
 ## Tests
 
 The email parsing tests live in `apps_script/Tests.gs` and run from the Apps
