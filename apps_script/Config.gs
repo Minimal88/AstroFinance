@@ -8,7 +8,8 @@
 
 // Column order is the contract shared with the phone app (app/astrofinance.html).
 // Apps Script writes positionally; the app reads by header name and writes
-// Category and PaymentID by column letter (L and M).
+// Currency/Amount (F, G, "Aceptar cambio"), Category (L), PaymentID (M) and
+// Tag (Q, set when a reconciliation is concluded) by column letter.
 const HEADERS = {
   Transactions: [
     'Reference',
@@ -27,6 +28,7 @@ const HEADERS = {
     'GmailMessageId',
     'GmailPermalink',
     'CreatedAt',
+    'Tag',
   ],
   Payments: ['PaymentID', 'PaymentDate', 'Amount', 'Currency', 'Notes', 'CreatedAt'],
   ParseErrors: ['GmailMessageId', 'ReceivedAt', 'Subject', 'Error', 'GmailPermalink'],

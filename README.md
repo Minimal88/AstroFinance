@@ -63,8 +63,12 @@ Google Sheets. The spreadsheet ID can be changed in the app's settings.
     a difference, with an "Aceptar cambio" button that writes the bank's
     amount and currency to the Sheet (columns F and G). IVA, installments, interest and payments are listed on
     their own. Sheet charges from the statement period with no bank line are
-    tagged "En espera", and those after the last posted charge are tagged
-    "Prox" (probably in the next statement).
+    proposed as "En espera", and those after the last posted charge as
+    "Prox" (probably in the next statement). Tags can be removed (with a
+    confirmation) while reconciling. "Concluir conciliación" writes them to
+    the Sheet's Tag column (Q, header added if missing) and clears the tag on
+    charges that now appear in the statement. Pendientes shows the tags, and
+    "Prox" charges are left out of the sums.
   - **Any other CSV**: the reference, amount and date columns are guessed
     from the headers (Spanish or English, comma or semicolon separated,
     UTF-8 or Windows-1252) and can be corrected; the choice is remembered.

@@ -293,6 +293,11 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
 .recon-row .meta { font-size: 0.78rem; color: var(--muted); grid-column: 1 / -1; overflow-wrap: anywhere; }
 .recon-row .why { font-size: 0.8rem; color: var(--warn); grid-column: 1 / -1; }
 .recon-row .actions { grid-column: 1 / -1; margin-top: 6px; }
+.recon-row .tagline { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 0.78rem; color: var(--muted); }
+.recon-row .tagline button { background: none; border: 0; padding: 4px 2px; color: var(--accent); font-weight: 600; font-size: 0.78rem; }
+.conclude { margin: 22px 0 8px; display: flex; flex-direction: column; gap: 8px; }
+.conclude .btn { width: 100%; }
+.conclude p { margin: 0; font-size: 0.82rem; color: var(--muted); text-align: center; }
 .recon-row .actions .btn { padding: 7px 12px; font-size: 0.82rem; }
 .recon-row .note { font-size: 0.8rem; color: var(--muted); grid-column: 1 / -1; }
 
@@ -369,12 +374,17 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
   // ---------- Config ----------
   const SERVER = "Google Sheets";
   const DEFAULT_SHEET_ID = "1jLcS4xf7jNM6OE2nGU5aHX3JThDyL4ud5gVqhvZ13ss";
-  const TXN_RANGE = "Transactions!A:P";
+  const TXN_RANGE = "Transactions!A:Q";
   const PAY_RANGE = "Payments!A:F";
   // Column letters in the Transactions tab (mirrors HEADERS in apps_script/Config.gs).
   const COL_CATEGORY = "L";
   const COL_PAYMENT = "M";
   const COL_CURRENCY = "F";
+  const COL_TAG = "Q"; // "Tag": set when a reconciliation is concluded
+  const TAG_NEXT = "Prox", TAG_WAIT = "En espera";
+  const tagClass = (tag) => (tag === TAG_NEXT ? "next" : "wait");
+  // "Prox" charges post in the next statement, so they stay out of this one's sums.
+  const counts = (t) => t.tag !== TAG_NEXT;
   const COL_AMOUNT = "G";
 
   const store = {
@@ -538,6 +548,8 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     };
     const missing = Object.entries(idx).filter(([, i]) => i < 0).map(([k]) => k);
     if (missing.length) throw new Error("La pestaña Transactions no tiene las columnas esperadas.");
+    const tagIdx = col("Tag");
+    state.hasTagHeader = tagIdx === 16;
     const out = [];
     values.forEach((r, i) => {
       if (i === 0) return;
@@ -559,6 +571,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
         category: String(r[idx.category] ?? "").trim(),
         paymentId: String(r[idx.paymentId] ?? "").trim(),
         permalink: String(r[idx.permalink] ?? "").trim(),
+        tag: tagIdx >= 0 ? String(r[tagIdx] ?? "").trim() : "",
       });
     });
     return out;
@@ -812,7 +825,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
       ${info.retry ? '<button class="btn secondary" type="button" data-action="refresh">Reintentar</button>' : ""}</div>`;
   }
 
-  function txnRow(t, { selectable, showHolder, showStatus, tag }) {
+  function txnRow(t, { selectable, showHolder, showStatus }) {
     const sel = state.selected.has(t.ref);
     const card = [t.cardType, t.last ? "••" + t.last : ""].filter(Boolean).join(" ");
     return `<div class="row${sel ? " selected" : ""}">
@@ -821,17 +834,17 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
         <span class="merchant">${esc(t.merchant)}</span>
         <span class="amount num">${money(t.amount, t.currency)}</span>
         <span class="meta"><span class="dot ${familyOf(t)}"></span>${fmtDate(t.date)} · <span class="card-tag">${esc(card)}</span>${showHolder ? " · " + esc(titleCase(t.holder)) : ""}${t.category ? ` <span class="pill cat">${esc(t.category)}</span>` : ""}</span>
-        <span class="side">${tag ? `<span class="pill ${tag.cls}">${esc(tag.text)}</span>` : ""}${showStatus ? (t.paymentId ? '<span class="pill paid">Pagado</span>' : '<span class="pill pending">Pendiente</span>') : ""}</span>
+        <span class="side">${t.tag ? `<span class="pill ${tagClass(t.tag)}">${esc(t.tag)}</span>` : ""}${showStatus ? (t.paymentId ? '<span class="pill paid">Pagado</span>' : '<span class="pill pending">Pendiente</span>') : ""}</span>
       </button>
     </div>`;
   }
 
   function renderPending() {
     const list = state.txns.filter((t) => !t.paymentId && inPeriod(t) && matchesQuery(t)).sort(byDateDesc);
-    const all = totalsByCurrency(list);
+    const all = totalsByCurrency(list.filter(counts));
     const groups = new Map();
     for (const t of list) { if (!groups.has(t.holder)) groups.set(t.holder, []); groups.get(t.holder).push(t); }
-    const ordered = [...groups.entries()].sort((a, b) => sumCRC(b[1]) - sumCRC(a[1]));
+    const ordered = [...groups.entries()].sort((a, b) => sumCRC(b[1].filter(counts)) - sumCRC(a[1].filter(counts)));
     let html = renderDueTiles();
     if (state.brand) {
       html += `<div class="filter-note">Solo ${esc(familyById(state.brand).name)} · ${list.length} pendiente${list.length === 1 ? "" : "s"} · <span class="num">${totalsText(all)}</span><button type="button" data-brand="${state.brand}">Ver todas</button></div>`;
@@ -844,8 +857,8 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
       const allSel = items.every((t) => state.selected.has(t.ref));
       html += `<section class="group${collapsed ? " collapsed" : ""}">
         <button class="group-head" type="button" data-toggle="${esc(holder)}" aria-expanded="${!collapsed}">
-          <span class="name">${esc(titleCase(holder))}<small>${items.length} pendiente${items.length === 1 ? "" : "s"}</small></span>
-          <span class="totals num">${totalsText(totalsByCurrency(items), "<br>")}</span>
+          <span class="name">${esc(titleCase(holder))}<small>${items.length} pendiente${items.length === 1 ? "" : "s"}${items.some((t) => !counts(t)) ? ` · ${items.filter((t) => !counts(t)).length} Prox sin sumar` : ""}</small></span>
+          <span class="totals num">${totalsText(totalsByCurrency(items.filter(counts)), "<br>")}</span>
           <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <div class="rows">
@@ -860,7 +873,9 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
   function renderDueTiles() {
     const tiles = CARD_FAMILIES.map((f) => {
       const st = statementFor(f.id) || statement(f.id, nextStatementOffset(f.id));
-      const items = state.txns.filter((t) => familyOf(t) === f.id && t.date >= st.start && t.date <= st.end && matchesQuery(t));
+      const all = state.txns.filter((t) => familyOf(t) === f.id && t.date >= st.start && t.date <= st.end && matchesQuery(t));
+      const items = all.filter(counts);
+      const prox = all.length - items.length;
       const pending = items.filter((t) => !t.paymentId);
       const days = daysUntil(st.due);
       const cls = days < 0 ? "late" : days <= 5 ? "soon" : "";
@@ -870,7 +885,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
         <span class="brand-name"><span class="dot ${f.id}"></span>${esc(f.name)}</span>
         <span class="due-when ${cls}">${dueLine}</span>
         <span class="value num">${totalsText(totalsByCurrency(items), "<br>")}</span>
-        <span class="sub">${closeLine} · ${pending.length ? `${pending.length} sin cobrar: <span class="num">${totalsText(totalsByCurrency(pending))}</span>` : "todo cobrado"}</span>
+        <span class="sub">${closeLine} · ${pending.length ? `${pending.length} sin cobrar: <span class="num">${totalsText(totalsByCurrency(pending))}</span>` : "todo cobrado"}${prox ? ` · ${prox} Prox sin sumar` : ""}</span>
       </button>`;
     }).join("");
     return `<div class="due-grid">${tiles}</div>`;
@@ -1018,10 +1033,10 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
       const rows = parseCsv(text);
       if (rows.length < 2) { toast("Ese archivo no tiene filas para comparar.", true); return; }
       const bac = parseBacStatement(rows);
-      if (bac) { state.recon = { name: file.name, kind: "bac", ...bac }; render(); return; }
+      if (bac) { state.recon = { name: file.name, kind: "bac", untagged: new Set(), ...bac }; render(); return; }
       const headers = rows[0].map((h) => h.trim());
       const body = rows.slice(1).map((r) => Object.fromEntries(headers.map((h, i) => [h, (r[i] ?? "").trim()])));
-      state.recon = { name: file.name, kind: "table", headers, rows: body, map: savedReconMap(headers) || guessColumns(headers), family: state.recon ? state.recon.family || "" : "" };
+      state.recon = { name: file.name, kind: "table", untagged: new Set(), headers, rows: body, map: savedReconMap(headers) || guessColumns(headers), family: state.recon ? state.recon.family || "" : "" };
       render();
     };
     const reader = new FileReader();
@@ -1185,7 +1200,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     const byRef = new Map();
     for (const t of pool) { byRef.set(t.ref, t); if (t.auth) byRef.set(t.auth, byRef.get(t.auth) || t); }
     const matchedIds = new Set();
-    const report = { matched: [], mismatched: [], missingInSheet: [], missingInStatement: [], period: null };
+    const report = { matched: [], mismatched: [], missingInSheet: [], missingInStatement: [], nextStatement: [], period: null };
     const dates = [];
 
     for (const row of rows) {
@@ -1257,6 +1272,92 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     }
   }
 
+  // ----- Tags: proposed while reconciling, written to the Sheet on "Concluir" -----
+  function taggedRow(t, tag) {
+    const removed = state.recon.untagged.has(t.ref);
+    return `<div class="recon-row">
+      <span class="what">${esc(t.merchant)}</span><span class="num">${money(t.amount, t.currency)}</span>
+      <span class="meta">${fmtDate(t.date, true)} · ${esc(t.cardType)} ••${esc(t.last)} · ${esc(titleCase(t.holder))}${t.paymentId ? " · pagado" : ""}</span>
+      <span class="tagline">${state.recon.concluded
+        ? (removed ? "Sin etiqueta" : `<span class="pill ${tagClass(tag)}">${esc(tag)}</span>`)
+        : removed
+        ? `Sin etiqueta <button type="button" data-retag="${esc(t.ref)}">Volver a poner “${esc(tag)}”</button>`
+        : `<span class="pill ${tagClass(tag)}">${esc(tag)}</span><button type="button" data-untag="${esc(t.ref)}" data-tag="${esc(tag)}">Quitar etiqueta</button>`}</span>
+    </div>`;
+  }
+  // What each charge's Tag should be after this reconciliation.
+  function reconTagWrites(r) {
+    const want = new Map();
+    for (const m of [...r.matched, ...r.mismatched]) if (m.txn) want.set(m.txn.ref, "");
+    for (const t of r.missingInStatement) want.set(t.ref, TAG_WAIT);
+    for (const t of r.nextStatement || []) want.set(t.ref, TAG_NEXT);
+    for (const ref of state.recon.untagged) if (want.has(ref)) want.set(ref, "");
+    const writes = [];
+    for (const [ref, tag] of want) {
+      const t = state.txns.find((x) => x.ref === ref);
+      if (t && t.tag !== tag) writes.push({ txn: t, tag });
+    }
+    return writes;
+  }
+  function renderConclude(r) {
+    state.recon.report = r;
+    if (state.recon.concluded) {
+      return `<div class="conclude"><div class="notice"><h3>Conciliación concluida</h3><p style="margin:0">Las etiquetas quedaron guardadas en tu hoja. Sube otro CSV para conciliar otro estado.</p></div></div>`;
+    }
+    const writes = reconTagWrites(r);
+    return `<div class="conclude">
+      <button class="btn" type="button" data-conclude="1">Concluir conciliación</button>
+      <p>${writes.length ? `Guarda ${writes.length} cambio${writes.length === 1 ? "" : "s"} de etiqueta en tu hoja.` : "No hay etiquetas que cambiar en tu hoja."}</p>
+    </div>`;
+  }
+  function openUntag(btn) {
+    const t = state.txns.find((x) => x.ref === btn.dataset.untag);
+    if (!t) return;
+    openModal(`<h2>¿Quitar la etiqueta “${esc(btn.dataset.tag)}”?</h2>
+      <p class="lede">${esc(t.merchant)} · ${money(t.amount, t.currency)} · ${fmtDate(t.date, true)}</p>
+      <p class="lede">${btn.dataset.tag === TAG_NEXT ? "Volverá a sumarse en el estado de su fecha." : "Ya no se marcará como pendiente de aparecer en el banco."} El cambio se guarda en tu hoja al concluir la conciliación.</p>
+      <div class="actions"><button class="btn secondary" type="button" id="untagNo">Cancelar</button><button class="btn" type="button" id="untagYes">Quitar etiqueta</button></div>`, (host) => {
+      host.querySelector("#untagNo").onclick = closeModal;
+      host.querySelector("#untagYes").onclick = () => { state.recon.untagged.add(t.ref); closeModal(); render(); };
+    });
+  }
+  function openConclude() {
+    const writes = reconTagWrites(state.recon.report);
+    const n = (tag) => writes.filter((w) => w.tag === tag).length;
+    const lines = [[TAG_NEXT, n(TAG_NEXT)], [TAG_WAIT, n(TAG_WAIT)]].filter(([, k]) => k).map(([tag, k]) => `<li>${k} con “${tag}”</li>`);
+    const cleared = n("");
+    if (cleared) lines.push(`<li>${cleared} sin etiqueta (ya aparecieron en el banco o la quitaste)</li>`);
+    openModal(`<h2>Concluir conciliación</h2>
+      ${writes.length ? `<p class="lede">Esto guarda en tu hoja (columna Tag):</p><ul class="lede">${lines.join("")}</ul>` : `<p class="lede">No hay etiquetas que cambiar. Se marca como concluida.</p>`}
+      <div class="actions"><button class="btn secondary" type="button" id="concNo">Cancelar</button><button class="btn" type="button" id="concYes">Concluir</button></div>`, (host) => {
+      host.querySelector("#concNo").onclick = closeModal;
+      const yes = host.querySelector("#concYes");
+      yes.onclick = async () => {
+        yes.disabled = true; yes.textContent = "Guardando…";
+        try {
+          await saveTags(writes);
+          state.recon.concluded = true;
+          closeModal(); toast(writes.length ? `Conciliación concluida: ${writes.length} etiqueta${writes.length === 1 ? "" : "s"} guardada${writes.length === 1 ? "" : "s"}.` : "Conciliación concluida."); render();
+        } catch (err) { yes.disabled = false; yes.textContent = "Concluir"; toast(writeErrorText(err), true); }
+      };
+    });
+  }
+  async function saveTags(writes) {
+    if (!writes.length) return;
+    if (!state.hasTagHeader) {
+      const head = valuesOf(await sheetCall("get_values", { spreadsheetId: settings.sheetId, range: `Transactions!${COL_TAG}1` }));
+      const current = String((head[0] && head[0][0]) ?? "").trim();
+      if (current && current !== "Tag") throw new Error(`La columna ${COL_TAG} de Transactions ya tiene otro encabezado (“${current}”).`);
+      if (!current) await sheetCall("update_values", { spreadsheetId: settings.sheetId, range: `Transactions!${COL_TAG}1`, values: [["Tag"]] });
+      state.hasTagHeader = true;
+    }
+    const assignments = await freshAssignments();
+    const rows = new Map();
+    for (const w of writes) { const a = assignments.get(w.txn.ref); if (a) rows.set(a.row, w.tag); }
+    await writeColumn(COL_TAG, rows);
+    for (const w of writes) w.txn.tag = w.tag;
+  }
+
   function renderReconcile() {
     let html = `<h2 class="section-title">Conciliar con el estado del banco</h2>
       <p class="period-label">Sube el CSV de “Transacciones del mes” del BAC (u otro CSV del banco). Lo comparo con tu hoja aquí mismo; no se modifica nada.</p>
@@ -1299,12 +1400,12 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
 
     html += reconSection("Con diferencias", r.mismatched, pairRow);
     html += reconSection("En el estado pero no en la hoja", r.missingInSheet, entryRow, "Compras que el banco cobró y que no llegaron por correo (o llegaron con otro monto o fecha).");
-    html += reconSection("En la hoja pero no en el estado", r.missingInStatement, (t) => txnRow(t, { showHolder: true, showStatus: true, tag: { cls: "wait", text: "En espera" } }), "Correos de este periodo sin cargo en el estado: posibles duplicados, reversiones o cargos que el banco aún no aplica.");
-    html += reconSection("Probablemente en el próximo estado", r.nextStatement, (t) => txnRow(t, { showHolder: true, showStatus: true, tag: { cls: "next", text: "Prox" } }), "Son de los últimos días antes del corte y el banco todavía no las había aplicado.");
+    html += reconSection("En la hoja pero no en el estado", r.missingInStatement, (t) => taggedRow(t, TAG_WAIT), "Correos de este periodo sin cargo en el estado: posibles duplicados, reversiones o cargos que el banco aún no aplica.");
+    html += reconSection("Probablemente en el próximo estado", r.nextStatement, (t) => taggedRow(t, TAG_NEXT), "Son de los últimos días antes del corte y el banco todavía no las había aplicado.");
     html += reconSection("Cargos e impuestos del banco", r.fees, entryRow, totalsNote(r.fees) + " · IVA de servicios digitales, cuotas e intereses. No vienen en los correos.");
     html += reconSection("Pagos que recibió el banco", r.payments, entryRow, r.payments.length ? totalsNote(r.payments) : "");
     html += reconSection("Coinciden", r.matched, pairRow);
-    return html;
+    return html + renderConclude(r);
   }
 
   function renderTableReconcile() {
@@ -1332,9 +1433,9 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     </div>`;
     html += reconSection("Con diferencias", r.mismatched, (e) => stmtRow(e, `<span class="why">${esc(e.reason)}</span>${acceptButton(e)}`));
     html += reconSection("En el estado pero no en la hoja", r.missingInSheet, (e) => stmtRow(e));
-    html += reconSection("En la hoja pero no en el estado", r.missingInStatement, (t) => txnRow(t, { showHolder: true, showStatus: true, tag: { cls: "wait", text: "En espera" } }));
+    html += reconSection("En la hoja pero no en el estado", r.missingInStatement, (t) => taggedRow(t, TAG_WAIT));
     html += reconSection("Coinciden", r.matched, (e) => stmtRow(e));
-    return html;
+    return html + renderConclude(r);
   }
 
   // ---------- Sheets / modals ----------
@@ -1577,6 +1678,11 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
   document.addEventListener("click", (e) => {
     const accept = e.target.closest("[data-accept]");
     if (accept && !accept.disabled) { acceptBankAmount(accept); return; }
+    const untag = e.target.closest("[data-untag]");
+    if (untag) { openUntag(untag); return; }
+    const retag = e.target.closest("[data-retag]");
+    if (retag && state.recon) { state.recon.untagged.delete(retag.dataset.retag); render(); return; }
+    if (e.target.closest("[data-conclude]") && state.recon && state.recon.report) { openConclude(); return; }
     const el = e.target.closest("[data-tab],[data-period],[data-brand],[data-toggle],[data-selectall],[data-open],[data-payment],[data-action]");
     if (!el || el.closest("#modal")) return;
     if (el.dataset.tab) {
