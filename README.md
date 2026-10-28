@@ -60,10 +60,11 @@ Google Sheets. The spreadsheet ID can be changed in the app's settings.
     that add up to it (one airline ticket per passenger), and an email in
     another currency with what the bank charged (EUR or ₡ billed in USD).
     The same merchant on the same day with a different amount is flagged as
-    a difference. IVA, installments, interest and payments are listed on
+    a difference, with an "Aceptar cambio" button that writes the bank's
+    amount and currency to the Sheet (columns F and G). IVA, installments, interest and payments are listed on
     their own. Sheet charges from the statement period with no bank line are
-    listed, and those after the last posted charge go under "probably in the
-    next statement".
+    tagged "En espera", and those after the last posted charge are tagged
+    "Prox" (probably in the next statement).
   - **Any other CSV**: the reference, amount and date columns are guessed
     from the headers (Spanish or English, comma or semicolon separated,
     UTF-8 or Windows-1252) and can be corrected; the choice is remembered.

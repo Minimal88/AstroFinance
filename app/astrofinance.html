@@ -162,11 +162,13 @@ button { cursor: pointer; }
 .row .merchant { font-weight: 600; font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .amount { font-size: 0.95rem; font-weight: 600; text-align: right; }
 .row .meta { font-size: 0.78rem; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; }
-.row .side { display: flex; justify-content: flex-end; align-items: center; }
+.row .side { display: flex; justify-content: flex-end; align-items: center; gap: 4px; flex-wrap: wrap; }
 .card-tag { font-family: var(--font-num); font-size: 0.72rem; }
 .pill { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; letter-spacing: 0.02em; }
 .pill.pending { background: var(--warn-soft); color: var(--warn); }
 .pill.paid { background: var(--ok-soft); color: var(--ok); }
+.pill.next { background: var(--accent-soft); color: var(--accent); }
+.pill.wait { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
 .pill.cat { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
 
 .empty, .notice {
@@ -290,6 +292,8 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
 .recon-row .what { font-weight: 600; font-size: 0.9rem; overflow-wrap: anywhere; }
 .recon-row .meta { font-size: 0.78rem; color: var(--muted); grid-column: 1 / -1; overflow-wrap: anywhere; }
 .recon-row .why { font-size: 0.8rem; color: var(--warn); grid-column: 1 / -1; }
+.recon-row .actions { grid-column: 1 / -1; margin-top: 6px; }
+.recon-row .actions .btn { padding: 7px 12px; font-size: 0.82rem; }
 .recon-row .note { font-size: 0.8rem; color: var(--muted); grid-column: 1 / -1; }
 
 .settings-link { display: block; margin: 24px auto 0; background: none; border: 0; color: var(--muted); font-size: 0.8rem; text-decoration: underline; }
@@ -370,6 +374,8 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
   // Column letters in the Transactions tab (mirrors HEADERS in apps_script/Config.gs).
   const COL_CATEGORY = "L";
   const COL_PAYMENT = "M";
+  const COL_CURRENCY = "F";
+  const COL_AMOUNT = "G";
 
   const store = {
     get(key, fallback) { try { const v = localStorage.getItem("af:" + key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; } },
@@ -806,7 +812,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
       ${info.retry ? '<button class="btn secondary" type="button" data-action="refresh">Reintentar</button>' : ""}</div>`;
   }
 
-  function txnRow(t, { selectable, showHolder, showStatus }) {
+  function txnRow(t, { selectable, showHolder, showStatus, tag }) {
     const sel = state.selected.has(t.ref);
     const card = [t.cardType, t.last ? "••" + t.last : ""].filter(Boolean).join(" ");
     return `<div class="row${sel ? " selected" : ""}">
@@ -815,7 +821,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
         <span class="merchant">${esc(t.merchant)}</span>
         <span class="amount num">${money(t.amount, t.currency)}</span>
         <span class="meta"><span class="dot ${familyOf(t)}"></span>${fmtDate(t.date)} · <span class="card-tag">${esc(card)}</span>${showHolder ? " · " + esc(titleCase(t.holder)) : ""}${t.category ? ` <span class="pill cat">${esc(t.category)}</span>` : ""}</span>
-        <span class="side">${showStatus ? (t.paymentId ? '<span class="pill paid">Pagado</span>' : '<span class="pill pending">Pendiente</span>') : ""}</span>
+        <span class="side">${tag ? `<span class="pill ${tag.cls}">${esc(tag.text)}</span>` : ""}${showStatus ? (t.paymentId ? '<span class="pill paid">Pagado</span>' : '<span class="pill pending">Pendiente</span>') : ""}</span>
       </button>
     </div>`;
   }
@@ -1159,7 +1165,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
         .sort((a, b) => Math.abs(daysBetween(a.date, e.date)) - Math.abs(daysBetween(b.date, e.date)))[0];
       if (t) {
         take(t, [e]);
-        report.mismatched.push({ txn: t, entries: [e], warn: true, note: `La hoja dice ${money(t.amount, t.currency)} y el banco ${money(e.amount, e.currency)} (diferencia ${money(e.amount - t.amount, e.currency)}).` });
+        report.mismatched.push({ txn: t, entries: [e], warn: true, bank: { amount: e.amount, currency: e.currency }, note: `La hoja dice ${money(t.amount, t.currency)} y el banco ${money(e.amount, e.currency)} (diferencia ${money(e.amount - t.amount, e.currency)}).` });
       }
     }
     report.missingInSheet = freeEntries();
@@ -1204,7 +1210,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
       if (!txn) { report.missingInSheet.push(entry); continue; }
       matchedIds.add(txn.row);
       if (entry.amount != null && Math.abs(Math.abs(txn.amount) - entry.amount) >= AMOUNT_TOLERANCE) {
-        report.mismatched.push({ ...entry, txn, reason: `El monto no coincide: hoja ${money(txn.amount, txn.currency)}, estado ${money(entry.amount, txn.currency)}.` });
+        report.mismatched.push({ ...entry, txn, bank: { amount: entry.amount, currency: txn.currency }, reason: `El monto no coincide: hoja ${money(txn.amount, txn.currency)}, estado ${money(entry.amount, txn.currency)}.` });
       } else report.matched.push({ ...entry, txn });
     }
     if (dates.length) {
@@ -1225,6 +1231,31 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
   const reconSection = (title, items, row, note = "") => `<h2 class="section-title">${title} <span class="period-label">(${items.length})</span></h2>` +
     (note && items.length ? `<p class="period-label" style="margin:-4px 0 8px">${note}</p>` : "") +
     (items.length ? `<section class="group">${items.map(row).join("")}</section>` : `<div class="empty">Nada aquí.</div>`);
+
+  // "Aceptar cambio": the bank is right, so the Sheet takes the bank's amount.
+  const acceptButton = (m) => (m.bank && m.txn ? `<span class="actions"><button class="btn secondary" type="button" data-accept="${esc(m.txn.ref)}" data-amount="${m.bank.amount}" data-currency="${esc(m.bank.currency)}">Aceptar cambio · ${money(m.bank.amount, m.bank.currency)}</button></span>` : "");
+  async function acceptBankAmount(btn) {
+    const txn = state.txns.find((t) => t.ref === btn.dataset.accept);
+    const amount = Number(btn.dataset.amount), currency = btn.dataset.currency;
+    if (!txn || !isFinite(amount)) return;
+    btn.disabled = true; btn.textContent = "Guardando…";
+    try {
+      const a = (await freshAssignments()).get(txn.ref);
+      if (!a) throw new Error("La hoja cambió. Actualiza e intenta de nuevo.");
+      await sheetCall("update_values", {
+        spreadsheetId: settings.sheetId,
+        range: `Transactions!${COL_CURRENCY}${a.row}:${COL_AMOUNT}${a.row}`,
+        values: [[currency, amount]],
+      });
+      const before = money(txn.amount, txn.currency);
+      txn.amount = amount; txn.currency = currency;
+      toast(`${txn.merchant}: ${before} → ${money(amount, currency)} en la hoja.`);
+      render();
+    } catch (err) {
+      btn.disabled = false; btn.textContent = "Aceptar cambio";
+      toast(err.message || "No se pudo guardar.", true);
+    }
+  }
 
   function renderReconcile() {
     let html = `<h2 class="section-title">Conciliar con el estado del banco</h2>
@@ -1262,14 +1293,14 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     const pairRow = (m) => `<div class="recon-row">
       <span class="what">${esc(m.txn.merchant)}</span><span class="num">${money(m.txn.amount, m.txn.currency)}</span>
       <span class="meta">${fmtDate(m.txn.date, true)} · ••${esc(m.txn.last)} · ${esc(titleCase(m.txn.holder))} · banco: ${entryText(m.entries)}</span>
-      ${m.note ? `<span class="${m.warn ? "why" : "note"}">${esc(m.note)}</span>` : ""}
+      ${m.note ? `<span class="${m.warn ? "why" : "note"}">${esc(m.note)}</span>` : ""}${acceptButton(m)}
     </div>`;
     const totalsNote = (list) => `Total <span class="num">${totalsText(totalsByCurrency(list))}</span>`;
 
     html += reconSection("Con diferencias", r.mismatched, pairRow);
     html += reconSection("En el estado pero no en la hoja", r.missingInSheet, entryRow, "Compras que el banco cobró y que no llegaron por correo (o llegaron con otro monto o fecha).");
-    html += reconSection("En la hoja pero no en el estado", r.missingInStatement, (t) => txnRow(t, { showHolder: true, showStatus: true }), "Correos de este periodo sin cargo en el estado: posibles duplicados, reversiones o cargos que el banco aún no aplica.");
-    html += reconSection("Probablemente en el próximo estado", r.nextStatement, (t) => txnRow(t, { showHolder: true, showStatus: true }), "Son de los últimos días antes del corte y el banco todavía no las había aplicado.");
+    html += reconSection("En la hoja pero no en el estado", r.missingInStatement, (t) => txnRow(t, { showHolder: true, showStatus: true, tag: { cls: "wait", text: "En espera" } }), "Correos de este periodo sin cargo en el estado: posibles duplicados, reversiones o cargos que el banco aún no aplica.");
+    html += reconSection("Probablemente en el próximo estado", r.nextStatement, (t) => txnRow(t, { showHolder: true, showStatus: true, tag: { cls: "next", text: "Prox" } }), "Son de los últimos días antes del corte y el banco todavía no las había aplicado.");
     html += reconSection("Cargos e impuestos del banco", r.fees, entryRow, totalsNote(r.fees) + " · IVA de servicios digitales, cuotas e intereses. No vienen en los correos.");
     html += reconSection("Pagos que recibió el banco", r.payments, entryRow, r.payments.length ? totalsNote(r.payments) : "");
     html += reconSection("Coinciden", r.matched, pairRow);
@@ -1299,9 +1330,9 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
       <span class="num">${e.amount != null ? money(e.amount, e.txn ? e.txn.currency : "CRC") : ""}</span>
       <span class="meta">${e.date ? fmtDate(e.date, true) : "sin fecha"}${e.reference ? " · ref " + esc(e.reference) : ""}${e.txn ? " · " + esc(titleCase(e.txn.holder)) : ""}</span>${extra}
     </div>`;
-    html += reconSection("Con diferencias", r.mismatched, (e) => stmtRow(e, `<span class="why">${esc(e.reason)}</span>`));
+    html += reconSection("Con diferencias", r.mismatched, (e) => stmtRow(e, `<span class="why">${esc(e.reason)}</span>${acceptButton(e)}`));
     html += reconSection("En el estado pero no en la hoja", r.missingInSheet, (e) => stmtRow(e));
-    html += reconSection("En la hoja pero no en el estado", r.missingInStatement, (t) => txnRow(t, { showHolder: true, showStatus: true }));
+    html += reconSection("En la hoja pero no en el estado", r.missingInStatement, (t) => txnRow(t, { showHolder: true, showStatus: true, tag: { cls: "wait", text: "En espera" } }));
     html += reconSection("Coinciden", r.matched, (e) => stmtRow(e));
     return html;
   }
@@ -1544,6 +1575,8 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
 
   // ---------- Events ----------
   document.addEventListener("click", (e) => {
+    const accept = e.target.closest("[data-accept]");
+    if (accept && !accept.disabled) { acceptBankAmount(accept); return; }
     const el = e.target.closest("[data-tab],[data-period],[data-brand],[data-toggle],[data-selectall],[data-open],[data-payment],[data-action]");
     if (!el || el.closest("#modal")) return;
     if (el.dataset.tab) {
