@@ -13,9 +13,49 @@
   </p>
 {% endif %}
 
+<section class="statements">
+  {% for tile in tiles %}
+    {% set st = tile.statement %}
+    <a class="statement-tile{% if tile.selected %} selected{% endif %}"
+       href="/transactions?view={{ view }}{% if not tile.selected %}&family={{ st.family.id }}{% endif %}">
+      <span class="label">{{ st.family.name }}</span>
+      <strong class="{% if tile.days_to_due < 0 %}late{% elif tile.days_to_due <= 5 %}soon{% endif %}">
+        {% if tile.days_to_due < 0 %}Was due {{ st.due.strftime("%b %d") }}
+        {% elif tile.days_to_due == 0 %}Due today
+        {% else %}Due {{ st.due.strftime("%b %d") }} · in {{ tile.days_to_due }} day{{ "" if tile.days_to_due == 1 else "s" }}{% endif %}
+      </strong>
+      <span class="amounts">
+        {% for currency, total in tile.totals.items() %}{{ currency }} {{ total | money }}{% if not loop.last %} · {% endif %}{% else %}Nothing charged{% endfor %}
+      </span>
+      <span class="hint">
+        {{ st.start.strftime("%b %d") }} – {{ st.end.strftime("%b %d") }}
+        · {{ "closes" if st.is_open else "closed" }} {{ st.end.strftime("%b %d") }}
+        · {% if tile.pending_count %}{{ tile.pending_count }} pending:
+          {% for currency, total in tile.pending_totals.items() %}{{ currency }} {{ total | money }}{% if not loop.last %}, {% endif %}{% endfor %}
+        {% else %}all paid{% endif %}
+      </span>
+    </a>
+  {% endfor %}
+</section>
+
 <form method="get" action="/transactions" class="filters">
-  <label>From <input type="date" name="start_date" value="{{ start_date }}"></label>
-  <label>To <input type="date" name="end_date" value="{{ end_date }}"></label>
+  <label>Statement
+    <select name="view">
+      {% for value, label in views.items() %}
+        <option value="{{ value }}" {% if value == view and not custom %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Cards
+    <select name="family">
+      <option value="">All</option>
+      {% for fid, fam in families.items() %}
+        <option value="{{ fid }}" {% if fid == family %}selected{% endif %}>{{ fam.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>From <input type="date" name="start_date" value="{{ start_date or "" }}"></label>
+  <label>To <input type="date" name="end_date" value="{{ end_date or "" }}"></label>
   <label>Cardholder
     <select name="cardholder_id">
       <option value="">All</option>
@@ -42,8 +82,13 @@
     </select>
   </label>
   <button type="submit">Apply</button>
-  <a class="reset" href="/transactions">Reset to billing period</a>
+  <a class="reset" href="/transactions">Reset to next payment</a>
 </form>
+
+<p class="hint">
+  {% if custom %}Custom range {{ start_date }} to {{ end_date }}; clear both dates to go back to statements.
+  {% else %}Each card is filtered by its own statement. Set both dates for a custom range.{% endif %}
+</p>
 
 {% include "transactions/_results.html" %}
 {% endblock %}

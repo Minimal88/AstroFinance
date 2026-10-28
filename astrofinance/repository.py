@@ -1,6 +1,15 @@
 import sqlite3
 from datetime import date
 
+from astrofinance.billing import AMEX, VISA_MC
+
+# Mirrors billing.card_family_id: Amex has its own cycle, every other card type
+# bills as Visa/Mastercard.
+FAMILY_SQL = {
+    AMEX: "UPPER(TRIM(c.card_type)) = 'AMEX'",
+    VISA_MC: "UPPER(TRIM(c.card_type)) <> 'AMEX'",
+}
+
 TRANSACTION_SELECT = """
     SELECT t.*, ch.name AS cardholder_name, c.card_type, c.last_digits
     FROM transactions t
@@ -150,7 +159,10 @@ def list_transactions(
     cardholder_id: int | None = None,
     card_id: int | None = None,
     paid: bool | None = None,
+    family_ranges: dict[str, tuple[date, date]] | None = None,
 ) -> tuple[list[sqlite3.Row], dict[str, float]]:
+    """Filters are ANDed. `family_ranges` maps a card family id to its own date
+    range, so each card can be matched against its own statement."""
     clauses, params = [], []
     if start_date:
         clauses.append("t.txn_date >= ?")
@@ -166,6 +178,12 @@ def list_transactions(
         params.append(card_id)
     if paid is not None:
         clauses.append("t.payment_id IS NOT NULL" if paid else "t.payment_id IS NULL")
+    if family_ranges is not None:
+        parts = []
+        for family_id, (start, end) in family_ranges.items():
+            parts.append(f"({FAMILY_SQL[family_id]} AND t.txn_date BETWEEN ? AND ?)")
+            params.extend([start.isoformat(), end.isoformat()])
+        clauses.append(f"({' OR '.join(parts)})" if parts else "0")
 
     where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
     rows = conn.execute(

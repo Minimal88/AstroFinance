@@ -52,7 +52,7 @@ Create a **service account** in the same Google Cloud project:
 Service-account keys do not expire, so this never needs re-authorizing.
 
 ```bash
-cp .env.example .env      # then set SPREADSHEET_ID and BILLING_CUTOFF_DAY
+cp .env.example .env      # then set SPREADSHEET_ID (and the card cutoff/pay days if they differ)
 ```
 
 ## Usage
@@ -68,9 +68,13 @@ cp .env.example .env      # then set SPREADSHEET_ID and BILLING_CUTOFF_DAY
 
 Open http://127.0.0.1:8000 for:
 
-- **Transactions** — filter by date range, cardholder, card and paid/pending,
-  with per-currency totals. Defaults to the current billing period, computed
-  from `BILLING_CUTOFF_DAY`. "Pull from Sheet" refreshes the mirror.
+- **Transactions** — opens on the next payment for each card family: a tile per
+  family shows its due date, statement total and what is still pending, and
+  each card's transactions are filtered by its own statement. Switch to the
+  following or previous statement, one card family, or a custom date range;
+  filter by cardholder, card and paid/pending. Visa and Mastercard close on the
+  21st and are due on the 5th; Amex closes on the 27th and is due on the 12th
+  (`VISA_MC_*` and `AMEX_*` in `.env`). "Pull from Sheet" refreshes the mirror.
 - **Payments** — record a payment covering a set of pending transactions. The
   bulk checkbox flow is why this stayed in the web app rather than moving to the
   phone. Writes go to the Sheet, then re-pull. Deleting a payment returns its
@@ -122,7 +126,7 @@ Matching rules:
 .venv/Scripts/python.exe -m pytest tests -q
 ```
 
-Covers the billing-period maths and statement reconciliation. The email parsing tests live in
+Covers the per-card statement maths, the Transactions page and statement reconciliation. The email parsing tests live in
 `apps_script/Tests.gs` and run from the Apps Script editor, alongside the parser
 they now guard.
 
