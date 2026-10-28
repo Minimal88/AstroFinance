@@ -1,0 +1,1755 @@
+<title>AstroFinance</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one phone-width column. Sticky header with period + search, list of
+   cardholder groups, a bottom tab bar, and a selection bar that rises above it. */
+:root {
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --surface-2: #f5f7fb;
+  --fg: #111826;
+  --muted: #5d6879;
+  --line: #dbe1ea;
+  --accent: #1d6fd8;
+  --accent-soft: #e2eefc;
+  --on-accent: #ffffff;
+  --ok: #17824a;
+  --ok-soft: #dff3e8;
+  --warn: #b5470f;
+  --warn-soft: #fbe9df;
+  --danger: #c2262e;
+  --shadow: 0 10px 30px rgba(17, 24, 38, 0.14);
+  --font-display: "Bricolage Grotesque", "Figtree", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 14px;
+  --tabbar-h: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117; --surface: #161c25; --surface-2: #1c2430; --fg: #e6ecf4; --muted: #8b97a9;
+    --line: #283140; --accent: #5aa7ff; --accent-soft: #16304f; --on-accent: #06121f;
+    --ok: #4fc68c; --ok-soft: #133524; --warn: #ff9a66; --warn-soft: #3a2116; --danger: #ff6b72;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1117; --surface: #161c25; --surface-2: #1c2430; --fg: #e6ecf4; --muted: #8b97a9;
+  --line: #283140; --accent: #5aa7ff; --accent-soft: #16304f; --on-accent: #06121f;
+  --ok: #4fc68c; --ok-soft: #133524; --warn: #ff9a66; --warn-soft: #3a2116; --danger: #ff6b72;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.4;
+  -webkit-tap-highlight-color: transparent;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 30; background: var(--surface);
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+.app { max-width: 720px; margin: 0 auto; padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 24px); }
+.app.has-selection { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 96px); }
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* Header */
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.top-row { display: flex; align-items: center; gap: 10px; padding-block: 12px 8px; }
+.brand { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.brand svg { flex: none; }
+.brand h1 { margin: 0; font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; }
+.sync { font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon-btn {
+  display: inline-grid; place-items: center; width: 40px; height: 40px; flex: none;
+  border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2);
+}
+.icon-btn:active { transform: scale(0.96); }
+.icon-btn.spin svg { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .icon-btn.spin svg { animation: none; } }
+
+.controls { display: flex; flex-direction: column; gap: 8px; padding-block: 0 12px; }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-inline: -2px; padding: 2px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+  padding: 6px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+}
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.search { position: relative; }
+.search input {
+  width: 100%; padding: 9px 12px 9px 36px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+.period-label { font-size: 0.78rem; color: var(--muted); }
+
+/* Summary */
+.summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-block: 16px 4px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
+.stat .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+.stat .value { font-size: 1.25rem; font-weight: 600; margin-top: 2px; overflow-wrap: anywhere; }
+.stat .sub { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+/* Next-payment tiles, one per card family */
+.due-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-block: 16px 4px; }
+@media (max-width: 380px) { .due-grid { grid-template-columns: minmax(0, 1fr); } }
+.due-tile {
+  display: flex; flex-direction: column; gap: 6px; text-align: left; min-width: 0;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px;
+}
+.due-tile[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.due-tile .brand-name { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.due-when { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; line-height: 1.15; }
+.due-when.soon { color: var(--warn); }
+.due-when.late { color: var(--danger); }
+.due-tile .value { font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
+.due-tile .sub { font-size: 0.76rem; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dot.visamc { background: var(--accent); }
+.dot.amex { background: var(--ok); }
+.filter-note { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--muted); margin-top: 10px; }
+.filter-note button { background: none; border: 0; color: var(--accent); font-weight: 600; padding: 4px; }
+.card-rules { display: grid; grid-template-columns: minmax(0, 1fr) 90px 90px; gap: 8px 10px; align-items: end; margin-bottom: 12px; }
+.card-rules .head { font-size: 0.74rem; color: var(--muted); font-weight: 600; }
+.card-rules .who { font-weight: 600; display: flex; align-items: center; gap: 8px; padding-bottom: 10px; }
+.card-rules input { padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); width: 100%; }
+
+/* Groups and rows */
+.section-title { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; margin: 18px 0 8px; }
+.group { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin-top: 12px; overflow: hidden; }
+.group-head {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 12px 14px; background: none; border: 0; border-bottom: 1px solid var(--line);
+}
+.group-head .name { flex: 1; min-width: 0; font-weight: 700; font-size: 0.92rem; letter-spacing: 0.01em; }
+.group-head .name small { display: block; font-weight: 500; color: var(--muted); font-size: 0.78rem; letter-spacing: 0; }
+.group-head .totals { text-align: right; font-size: 0.9rem; font-weight: 600; }
+.group-head .chev { color: var(--muted); transition: transform 0.15s; }
+.group.collapsed .group-head { border-bottom: 0; }
+.group.collapsed .chev { transform: rotate(-90deg); }
+.group.collapsed .rows { display: none; }
+.select-all { font-size: 0.78rem; color: var(--accent); font-weight: 600; background: none; border: 0; padding: 8px 14px; }
+
+.row { display: flex; align-items: stretch; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row .pick { display: grid; place-items: center; padding-left: 14px; }
+.row .pick input { width: 20px; height: 20px; accent-color: var(--accent); }
+.row .body {
+  flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px;
+  padding: 11px 14px; background: none; border: 0; text-align: left;
+}
+.row.selected { background: var(--accent-soft); }
+.row .merchant { font-weight: 600; font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .amount { font-size: 0.95rem; font-weight: 600; text-align: right; }
+.row .meta { font-size: 0.78rem; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; }
+.row .side { display: flex; justify-content: flex-end; align-items: center; gap: 4px; flex-wrap: wrap; }
+.card-tag { font-family: var(--font-num); font-size: 0.72rem; }
+.pill { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; letter-spacing: 0.02em; }
+.pill.pending { background: var(--warn-soft); color: var(--warn); }
+.pill.paid { background: var(--ok-soft); color: var(--ok); }
+.pill.next { background: var(--accent-soft); color: var(--accent); }
+.pill.wait { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+.pill.cat { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+
+.empty, .notice {
+  background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius);
+  padding: 22px 18px; margin-top: 16px; text-align: center; color: var(--muted);
+}
+.notice { border-style: solid; text-align: left; color: var(--fg); }
+.notice.error { border-color: var(--danger); }
+.notice h3 { margin: 0 0 4px; font-size: 1rem; }
+.notice p { margin: 0 0 10px; color: var(--muted); }
+.skeleton { height: 56px; border-radius: 10px; background: linear-gradient(90deg, var(--surface-2), var(--line), var(--surface-2)); background-size: 200% 100%; animation: shimmer 1.4s infinite; margin-top: 10px; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+.filters-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.filters-row select { flex: 1 1 140px; min-width: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); }
+
+/* Payments */
+.pay-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 13px 14px; border-top: 1px solid var(--line); width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; }
+.pay-card:first-child { border-top: 0; }
+.pay-card .title { font-weight: 600; }
+.pay-card .meta { font-size: 0.78rem; color: var(--muted); }
+.delta-ok { color: var(--ok); }
+.delta-off { color: var(--warn); }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 11px 16px; border-radius: 12px; border: 1px solid transparent; font-weight: 700;
+  background: var(--accent); color: var(--on-accent);
+}
+.btn.secondary { background: var(--surface-2); color: var(--fg); border-color: var(--line); }
+.btn.ghost { background: none; color: var(--accent); padding-inline: 8px; }
+.btn.danger { background: none; color: var(--danger); border-color: var(--line); }
+.btn[disabled] { opacity: 0.55; cursor: progress; }
+
+/* Selection bar */
+.selbar {
+  position: fixed; left: 0; right: 0; z-index: 25;
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 8px);
+  display: flex; justify-content: center; pointer-events: none;
+  padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px));
+}
+.selbar[hidden] { display: none; }
+.selbar-inner {
+  pointer-events: auto; width: 100%; max-width: 696px; display: flex; align-items: center; gap: 10px;
+  background: var(--fg); color: var(--bg); border-radius: 16px; padding: 10px 10px 10px 16px; box-shadow: var(--shadow);
+}
+.selbar-inner .info { flex: 1; min-width: 0; font-size: 0.85rem; }
+.selbar-inner .info strong { display: block; font-size: 1rem; }
+.selbar-inner .clear { background: none; border: 0; color: var(--bg); opacity: 0.75; font-weight: 600; padding: 8px; }
+
+/* Tab bar */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 26;
+  background: var(--surface); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
+}
+.tabbar nav { max-width: 720px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); height: var(--tabbar-h); }
+.tab { background: none; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--muted); font-size: 0.74rem; font-weight: 600; position: relative; }
+.tab[aria-current="page"] { color: var(--accent); }
+.tab .badge { position: absolute; top: 8px; left: calc(50% + 6px); background: var(--warn); color: var(--surface); font-size: 0.65rem; border-radius: 999px; padding: 1px 6px; font-family: var(--font-num); }
+
+/* Sheets (modals) */
+.scrim { position: fixed; inset: 0; background: rgba(5, 8, 14, 0.5); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
+.sheet {
+  width: 100%; max-width: 720px; max-height: 88vh; overflow-y: auto; background: var(--surface);
+  border-radius: 20px 20px 0 0; padding-top: 8px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px));
+  box-shadow: var(--shadow);
+}
+.sheet .grab { width: 40px; height: 4px; border-radius: 4px; background: var(--line); margin: 0 auto 10px; }
+.sheet h2 { font-family: var(--font-display); margin: 4px 0 4px; font-size: 1.25rem; letter-spacing: -0.01em; }
+.sheet .lede { color: var(--muted); margin: 0 0 14px; font-size: 0.88rem; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.field label { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+.field input, .field select, .field textarea { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); width: 100%; }
+.field-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 10px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 3px; margin-bottom: 14px; }
+.seg button { border: 0; background: none; padding: 8px; border-radius: 9px; font-weight: 600; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+.actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; flex-wrap: wrap; }
+.kv { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px 12px; font-size: 0.9rem; margin: 10px 0 16px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+.big-amount { font-size: 1.8rem; font-weight: 600; margin: 6px 0 2px; }
+.mini-list { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 6px 0 14px; }
+.mini-list .row .body { padding-block: 9px; }
+.form-error { color: var(--danger); font-size: 0.85rem; margin: 4px 0 8px; }
+a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
+
+/* Toast */
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 50;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 0.88rem;
+  box-shadow: var(--shadow); max-width: calc(100% - 32px);
+}
+.toast.error { background: var(--danger); color: #fff; }
+
+/* Reconciliation */
+.upload {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  margin-top: 16px; padding: 22px 16px; border: 1.5px dashed var(--line); border-radius: var(--radius);
+  background: var(--surface); cursor: pointer;
+}
+.upload:focus-within { border-color: var(--accent); }
+.upload strong { font-size: 1rem; }
+.upload span { color: var(--muted); font-size: 0.84rem; }
+.upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.map-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 14px; }
+.map-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 0.76rem; color: var(--muted); font-weight: 600; min-width: 0; }
+.map-grid select { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); min-width: 0; }
+.recon-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+@media (max-width: 520px) { .recon-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.recon-summary .stat .value { font-size: 1.4rem; }
+.recon-summary .stat.bad .value { color: var(--warn); }
+.recon-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 11px 14px; border-top: 1px solid var(--line); }
+.recon-row:first-child { border-top: 0; }
+.recon-row .what { font-weight: 600; font-size: 0.9rem; overflow-wrap: anywhere; }
+.recon-row .meta { font-size: 0.78rem; color: var(--muted); grid-column: 1 / -1; overflow-wrap: anywhere; }
+.recon-row .why { font-size: 0.8rem; color: var(--warn); grid-column: 1 / -1; }
+.recon-row .actions { grid-column: 1 / -1; margin-top: 6px; }
+.recon-row .tagline { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 0.78rem; color: var(--muted); }
+.recon-row .tagline button { background: none; border: 0; padding: 4px 2px; color: var(--accent); font-weight: 600; font-size: 0.78rem; }
+.conclude { margin: 22px 0 8px; display: flex; flex-direction: column; gap: 8px; }
+.conclude .btn { width: 100%; }
+.conclude p { margin: 0; font-size: 0.82rem; color: var(--muted); text-align: center; }
+.recon-row .actions .btn { padding: 7px 12px; font-size: 0.82rem; }
+.recon-row .note { font-size: 0.8rem; color: var(--muted); grid-column: 1 / -1; }
+
+.settings-link { display: block; margin: 24px auto 0; background: none; border: 0; color: var(--muted); font-size: 0.8rem; text-decoration: underline; }
+</style>
+
+<div class="app" id="app">
+  <header class="top">
+    <div class="gutter top-row">
+      <div class="brand">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M20.5 4.5c3.6-1 6.2-.6 6.9.1.7.7 1.1 3.3.1 6.9-1 3.5-3.4 7-6.9 9.6l-.7 4.6-4.2 2.6-.7-4.9-4.3-4.3-4.9-.7 2.6-4.2 4.6-.7c2.6-3.5 6.1-5.9 9.5-7z" fill="var(--accent)"/>
+          <circle cx="20.6" cy="11.4" r="2.4" fill="var(--surface)"/>
+          <path d="M8.6 20.3c-2 .6-3.2 2.5-3.6 6.7 4.2-.4 6.1-1.6 6.7-3.6" fill="none" stroke="var(--warn)" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <div style="min-width:0">
+          <h1>AstroFinance</h1>
+          <div class="sync" id="sync">Conectando con tu hoja…</div>
+        </div>
+      </div>
+      <button class="icon-btn" id="refresh" type="button" aria-label="Actualizar desde la hoja">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      </button>
+    </div>
+    <div class="gutter controls">
+      <div class="chips" id="periods" role="group" aria-label="Periodo"></div>
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Buscar comercio, tarjeta, referencia…" autocomplete="off">
+      </div>
+      <div class="period-label" id="periodLabel"></div>
+    </div>
+  </header>
+
+  <main class="gutter" id="main"></main>
+</div>
+
+<div class="selbar" id="selbar" hidden>
+  <div class="selbar-inner">
+    <div class="info"><strong class="num" id="selTotal"></strong><span id="selCount"></span></div>
+    <button class="clear" id="selClear" type="button">Limpiar</button>
+    <button class="btn" id="selPay" type="button">Marcar pagado</button>
+  </div>
+</div>
+
+<div class="tabbar">
+  <nav aria-label="Secciones">
+    <button class="tab" type="button" data-tab="pending">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      Pendientes<span class="badge" id="pendingBadge" hidden></span>
+    </button>
+    <button class="tab" type="button" data-tab="all">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>
+      Movimientos
+    </button>
+    <button class="tab" type="button" data-tab="reconcile">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+      Conciliar
+    </button>
+    <button class="tab" type="button" data-tab="payments">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+      Pagos
+    </button>
+  </nav>
+</div>
+
+<div id="modal"></div>
+<div id="toastHost"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- Config ----------
+  const SERVER = "Google Sheets";
+  const DEFAULT_SHEET_ID = "1jLcS4xf7jNM6OE2nGU5aHX3JThDyL4ud5gVqhvZ13ss";
+  const TXN_RANGE = "Transactions!A:Q";
+  const PAY_RANGE = "Payments!A:F";
+  // Column letters in the Transactions tab (mirrors HEADERS in apps_script/Config.gs).
+  const COL_CATEGORY = "L";
+  const COL_PAYMENT = "M";
+  const COL_CURRENCY = "F";
+  const COL_TAG = "Q"; // "Tag": set when a reconciliation is concluded
+  const TAG_NEXT = "Prox", TAG_WAIT = "En espera";
+  const tagClass = (tag) => (tag === TAG_NEXT ? "next" : "wait");
+  // "Prox" charges post in the next statement, so they stay out of this one's sums.
+  const counts = (t) => t.tag !== TAG_NEXT;
+  const COL_AMOUNT = "G";
+
+  const store = {
+    get(key, fallback) { try { const v = localStorage.getItem("af:" + key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; } },
+    set(key, value) { try { localStorage.setItem("af:" + key, JSON.stringify(value)); } catch { /* storage unavailable */ } },
+  };
+
+  // Each card family closes its statement on its own day and is due on its own day.
+  const CARD_FAMILIES = [
+    { id: "visamc", name: "Visa · Mastercard", short: "Visa/MC", defaults: { cutoff: 21, pay: 5 } },
+    { id: "amex", name: "Amex", short: "Amex", defaults: { cutoff: 27, pay: 12 } },
+  ];
+  const savedCards = store.get("cards", {});
+  const settings = {
+    sheetId: store.get("sheetId", DEFAULT_SHEET_ID),
+    cards: Object.fromEntries(CARD_FAMILIES.map((f) => [f.id, { ...f.defaults, ...(savedCards[f.id] || {}) }])),
+  };
+  const familyOf = (t) => (String(t.cardType).toUpperCase() === "AMEX" ? "amex" : "visamc");
+  const familyById = (id) => CARD_FAMILIES.find((f) => f.id === id);
+
+  const state = {
+    tab: ["pending", "all", "payments", "reconcile"].includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "pending"),
+    period: ["next", "following", "previous", "all"].includes(store.get("period2", "")) ? store.get("period2") : "next",
+    brand: "",
+    query: "",
+    holder: "",
+    status: "all",
+    collapsed: new Set(store.get("collapsed", [])),
+    selected: new Set(),
+    txns: null,
+    payments: null,
+    txnError: null,
+    payError: null,
+    updatedAt: null,
+    loading: true,
+    mcp: undefined,
+    recon: null, // { name, headers, rows, map, family }
+  };
+
+  // ---------- Helpers ----------
+  const $ = (sel) => document.querySelector(sel);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function parseAmount(raw) {
+    if (typeof raw === "number") return raw;
+    let t = String(raw ?? "").trim();
+    if (!t) return 0;
+    const neg = /^\(.*\)$/.test(t) || t.startsWith("-");
+    t = t.replace(/[^\d.,]/g, "");
+    if (t.includes(",") && t.includes(".")) {
+      t = t.lastIndexOf(",") > t.lastIndexOf(".") ? t.replace(/\./g, "").replace(",", ".") : t.replace(/,/g, "");
+    } else if (t.includes(",")) {
+      t = /,\d{1,2}$/.test(t) ? t.replace(",", ".") : t.replace(/,/g, "");
+    }
+    const n = parseFloat(t);
+    return isNaN(n) ? 0 : (neg ? -n : n);
+  }
+
+  // The script writes ISO dates; the Sheet may show M/D/YYYY for rows typed by hand.
+  function parseDate(raw) {
+    const t = String(raw ?? "").trim();
+    let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return iso(+m[1], +m[2], +m[3]);
+    m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return iso(+m[3], +m[1], +m[2]);
+    return "";
+  }
+  function iso(y, mo, d) { return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`; }
+  function todayIso() { const d = new Date(); return iso(d.getFullYear(), d.getMonth() + 1, d.getDate()); }
+  function addDays(isoDate, n) { const [y, m, d] = isoDate.split("-").map(Number); const dt = new Date(y, m - 1, d + n); return iso(dt.getFullYear(), dt.getMonth() + 1, dt.getDate()); }
+
+  const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  function fmtDate(isoDate, withYear) {
+    if (!isoDate) return "—";
+    const [y, m, d] = isoDate.split("-").map(Number);
+    return `${d} ${MONTHS[m - 1]}${withYear ? " " + y : ""}`;
+  }
+
+  const SYMBOL = { CRC: "₡", USD: "$" };
+  function money(amount, currency) {
+    const sym = SYMBOL[currency] ?? (currency ? currency + " " : "");
+    const n = Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (amount < 0 ? "−" : "") + sym + n;
+  }
+  function totalsByCurrency(list) {
+    const out = {};
+    for (const t of list) out[t.currency] = (out[t.currency] || 0) + t.amount;
+    return out;
+  }
+  function totalsText(totals, sep = " · ") {
+    const keys = Object.keys(totals).sort((a, b) => (a === "CRC" ? -1 : b === "CRC" ? 1 : a.localeCompare(b)));
+    return keys.length ? keys.map((c) => money(totals[c], c)).join(sep) : money(0, "CRC");
+  }
+  function titleCase(name) {
+    return String(name || "").toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+  }
+
+  // ---------- Statements ----------
+  // A statement closes on the cutoff day (inclusive) and covers everything since
+  // the day after the previous cutoff. It is due on the pay day: the next month
+  // when the pay day comes before the cutoff day (21 -> 5), else the same month.
+  function cutoffFor(y, m, day) { const last = new Date(y, m, 0).getDate(); return iso(y, m, Math.min(day, last)); }
+  function shiftMonth(y, m, delta) { const idx = y * 12 + (m - 1) + delta; return [Math.floor(idx / 12), (idx % 12) + 1]; }
+  function statement(familyId, offset) {
+    const { cutoff, pay } = settings.cards[familyId];
+    const today = todayIso();
+    let [y, m] = today.split("-").map(Number);
+    // offset 0 = the statement that contains today (still open).
+    if (today > cutoffFor(y, m, cutoff)) [y, m] = shiftMonth(y, m, 1);
+    [y, m] = shiftMonth(y, m, offset);
+    const end = cutoffFor(y, m, cutoff);
+    const start = addDays(cutoffFor(...shiftMonth(y, m, -1), cutoff), 1);
+    const due = cutoffFor(...shiftMonth(y, m, pay <= cutoff ? 1 : 0), pay);
+    return { familyId, start, end, due, open: end >= today };
+  }
+  // The statement whose payment is the next one coming up (closed or not).
+  function nextStatementOffset(familyId) {
+    for (let k = -2; k <= 1; k++) if (statement(familyId, k).due >= todayIso()) return k;
+    return 0;
+  }
+  const PERIODS = [
+    { id: "next", label: "Próximo pago" },
+    { id: "following", label: "Siguiente estado" },
+    { id: "previous", label: "Estado anterior" },
+    { id: "all", label: "Todo" },
+  ];
+  function statementFor(familyId) {
+    const base = nextStatementOffset(familyId);
+    if (state.period === "next") return statement(familyId, base);
+    if (state.period === "following") return statement(familyId, base + 1);
+    if (state.period === "previous") return statement(familyId, base - 1);
+    return null;
+  }
+  function statementOfDate(familyId, date) {
+    for (let k = -24; k <= 2; k++) { const st = statement(familyId, k); if (date >= st.start && date <= st.end) return st; }
+    return null;
+  }
+  function daysUntil(isoDate) {
+    const [y, m, d] = isoDate.split("-").map(Number);
+    const [ty, tm, td] = todayIso().split("-").map(Number);
+    return Math.round((new Date(y, m - 1, d) - new Date(ty, tm - 1, td)) / 86400000);
+  }
+  function whenText(isoDate) {
+    const n = daysUntil(isoDate);
+    if (n === 0) return "hoy";
+    if (n === 1) return "mañana";
+    if (n > 1) return `en ${n} días`;
+    return n === -1 ? "ayer" : `hace ${-n} días`;
+  }
+
+  // ---------- Data mapping ----------
+  function mapTransactions(values) {
+    if (!Array.isArray(values) || !values.length) return [];
+    const header = values[0].map((h) => String(h).trim());
+    const col = (name) => header.indexOf(name);
+    const idx = {
+      ref: col("Reference"), date: col("TxnDate"), merchant: col("Merchant"), description: col("Description"),
+      location: col("Location"), currency: col("Currency"), amount: col("Amount"), cardType: col("CardType"),
+      last: col("LastDigits"), holder: col("CardholderName"), auth: col("Authorization"), category: col("Category"),
+      paymentId: col("PaymentID"), permalink: col("GmailPermalink"),
+    };
+    const missing = Object.entries(idx).filter(([, i]) => i < 0).map(([k]) => k);
+    if (missing.length) throw new Error("La pestaña Transactions no tiene las columnas esperadas.");
+    const tagIdx = col("Tag");
+    state.hasTagHeader = tagIdx === 16;
+    const out = [];
+    values.forEach((r, i) => {
+      if (i === 0) return;
+      const ref = String(r[idx.ref] ?? "").trim();
+      if (!ref) return;
+      out.push({
+        row: i + 1,
+        ref,
+        date: parseDate(r[idx.date]),
+        merchant: String(r[idx.merchant] ?? "").trim() || "(sin comercio)",
+        description: String(r[idx.description] ?? "").trim(),
+        location: String(r[idx.location] ?? "").trim(),
+        currency: String(r[idx.currency] ?? "").trim() || "CRC",
+        amount: parseAmount(r[idx.amount]),
+        cardType: String(r[idx.cardType] ?? "").trim(),
+        last: String(r[idx.last] ?? "").trim(),
+        holder: String(r[idx.holder] ?? "").trim() || "(sin titular)",
+        auth: String(r[idx.auth] ?? "").trim(),
+        category: String(r[idx.category] ?? "").trim(),
+        paymentId: String(r[idx.paymentId] ?? "").trim(),
+        permalink: String(r[idx.permalink] ?? "").trim(),
+        tag: tagIdx >= 0 ? String(r[tagIdx] ?? "").trim() : "",
+      });
+    });
+    return out;
+  }
+  function mapPayments(values) {
+    if (!Array.isArray(values) || !values.length) return [];
+    return values.slice(1).map((r, i) => ({
+      row: i + 2,
+      id: String(r[0] ?? "").trim(),
+      date: parseDate(r[1]),
+      amount: parseAmount(r[2]),
+      currency: String(r[3] ?? "").trim() || "CRC",
+      notes: String(r[4] ?? "").trim(),
+    })).filter((p) => p.id);
+  }
+  function valuesOf(result) {
+    const p = result && (result.payload ?? result);
+    if (p && Array.isArray(p.values)) return p.values;
+    if (p && typeof p === "object" && !Array.isArray(p)) return [];
+    throw new Error("Respuesta inesperada de Google Sheets.");
+  }
+
+  // ---------- Errors ----------
+  function describeError(err) {
+    const code = err && err.code;
+    switch (code) {
+      case "server_not_connected":
+      case "server_not_found":
+        return { title: "Google Sheets no está conectado", text: "Agrega el conector Google Sheets en claude.ai → Ajustes → Conectores y vuelve a abrir esta página." };
+      case "needs_reauth":
+        return { title: "Tu sesión de Google expiró", text: "Reconecta Google Sheets en claude.ai → Ajustes → Conectores." };
+      case "selection_required":
+        return { title: "Elige tu cuenta de Google Sheets", text: "Tienes más de una conexión de Google Sheets. Elige cuál usar en el aviso de claude.ai." };
+      case "approval_required":
+      case "not_in_manifest":
+      case "consent_required":
+        return { title: "Falta tu permiso", text: "Esta página necesita permiso para leer y escribir tu hoja de AstroFinance.", allow: true };
+      case "blocked_by_policy":
+        return { title: "Bloqueado por tu organización", text: "Tu organización no permite este conector aquí." };
+      case "server_unavailable":
+        return { title: "Google Sheets no respondió", text: "Suele ser momentáneo. Toca Actualizar en unos segundos.", retry: true };
+      case "tool_error":
+        return { title: "Google Sheets rechazó la operación", text: shortMessage(err) };
+      case "not_granted":
+      case "capability_disabled":
+      case "capability_removed":
+        return { title: "Conexión no disponible aquí", text: "Abre esta página en claude.ai para conectarla con tu hoja." };
+      default:
+        return { title: "No se pudo leer la hoja", text: shortMessage(err) || "Toca Actualizar para reintentar.", retry: true };
+    }
+  }
+  function shortMessage(err) {
+    const m = String((err && err.message) || "");
+    return m.length > 220 ? m.slice(0, 220) + "…" : m;
+  }
+
+  // ---------- MCP plumbing ----------
+  let unwatch = [];
+  function watchSheets() {
+    unwatch.forEach((u) => u()); unwatch = [];
+    const mcp = state.mcp;
+    const opts = { cache: { staleTime: 0, gcTime: 7 * 24 * 3600 * 1000 }, refetchInterval: 180000 };
+    unwatch.push(mcp.watchTool(SERVER, "get_values", { spreadsheetId: settings.sheetId, range: TXN_RANGE }, (ev) => {
+      if (ev.type === "data") {
+        try { state.txns = mapTransactions(valuesOf(ev.result)); state.txnError = null; }
+        catch (e) { state.txnError = { code: "parse", message: e.message }; }
+        state.updatedAt = ev.result.cache ? ev.result.cache.storedAt : Date.now();
+        state.revalidating = !!(ev.result.cache && ev.result.cache.revalidating);
+      } else {
+        const denial = ["needs_reauth", "server_not_connected", "blocked_by_policy", "approval_required", "not_in_manifest", "consent_required", "selection_required"].includes(ev.error.code);
+        if (denial) state.txns = null;
+        state.txnError = ev.error;
+      }
+      state.loading = false; setRefreshing(false); render();
+    }, opts));
+    unwatch.push(mcp.watchTool(SERVER, "get_values", { spreadsheetId: settings.sheetId, range: PAY_RANGE }, (ev) => {
+      if (ev.type === "data") {
+        try { state.payments = mapPayments(valuesOf(ev.result)); state.payError = null; }
+        catch (e) { state.payError = { code: "parse", message: e.message }; }
+      } else {
+        state.payError = ev.error;
+      }
+      render();
+    }, opts));
+  }
+
+  async function refresh() {
+    if (!state.mcp) return;
+    setRefreshing(true);
+    try { await state.mcp.invalidate(SERVER, "get_values"); }
+    catch { watchSheets(); }
+    setTimeout(() => setRefreshing(false), 15000);
+  }
+  function setRefreshing(on) { $("#refresh").classList.toggle("spin", on); }
+
+  // One explicit call: used when a watch reports missing consent, since only callTool can ask.
+  async function allowAccess() {
+    try {
+      await state.mcp.callTool(SERVER, "get_values", { spreadsheetId: settings.sheetId, range: "Transactions!A1:A1" }, { cache: false });
+      watchSheets();
+    } catch (e) { state.txnError = e; render(); }
+  }
+
+  async function sheetCall(tool, input) {
+    return state.mcp.callTool(SERVER, tool, input, { cache: false });
+  }
+
+  // Reads References and PaymentIDs right before writing, so a row moved or a
+  // payment set elsewhere is noticed instead of overwritten.
+  async function freshAssignments() {
+    const [refs, pids] = await Promise.all([
+      sheetCall("get_values", { spreadsheetId: settings.sheetId, range: "Transactions!A:A" }),
+      sheetCall("get_values", { spreadsheetId: settings.sheetId, range: `Transactions!${COL_PAYMENT}:${COL_PAYMENT}` }),
+    ]);
+    const refVals = valuesOf(refs), pidVals = valuesOf(pids);
+    const map = new Map();
+    refVals.forEach((r, i) => {
+      if (i === 0) return;
+      const ref = String((r && r[0]) ?? "").trim();
+      if (ref) map.set(ref, { row: i + 1, pid: String((pidVals[i] && pidVals[i][0]) ?? "").trim() });
+    });
+    return map;
+  }
+
+  // Writes one value into column `col` for each row, one call per run of consecutive rows.
+  async function writeColumn(col, rowValues) {
+    const rows = [...rowValues.keys()].sort((a, b) => a - b);
+    let i = 0;
+    while (i < rows.length) {
+      let j = i;
+      while (j + 1 < rows.length && rows[j + 1] === rows[j] + 1) j++;
+      const run = rows.slice(i, j + 1);
+      await sheetCall("update_values", {
+        spreadsheetId: settings.sheetId,
+        range: `Transactions!${col}${run[0]}:${col}${run[run.length - 1]}`,
+        values: run.map((r) => [rowValues.get(r)]),
+      });
+      i = j + 1;
+    }
+  }
+
+  // Same shape as AppSheet's UNIQUEID(); starts with a letter so Sheets never reads it as a number.
+  function newPaymentId() {
+    const hex = Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, "0")).join("");
+    return "abcdef"[Math.floor(Math.random() * 6)] + hex.slice(1);
+  }
+  function nowStamp() {
+    const d = new Date(); const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+
+  async function markPaid(txns, payment) {
+    const assignments = await freshAssignments();
+    const missing = txns.filter((t) => !assignments.has(t.ref));
+    if (missing.length) throw new Error(`La hoja cambió: no encuentro ${missing.map((t) => t.ref).join(", ")}. Actualiza e intenta de nuevo.`);
+    const taken = txns.filter((t) => assignments.get(t.ref).pid && assignments.get(t.ref).pid !== payment.id);
+    if (taken.length) throw new Error(`${taken.length} movimiento(s) ya tienen otro pago (marcado desde otro lado). Actualiza para verlos.`);
+    if (payment.isNew) {
+      await sheetCall("append_values", {
+        spreadsheetId: settings.sheetId,
+        range: PAY_RANGE,
+        values: [[payment.id, payment.date, payment.amount, payment.currency, payment.notes, nowStamp()]],
+      });
+    }
+    const writes = new Map(txns.map((t) => [assignments.get(t.ref).row, payment.id]));
+    await writeColumn(COL_PAYMENT, writes);
+  }
+
+  async function unmark(txns) {
+    const assignments = await freshAssignments();
+    const writes = new Map();
+    for (const t of txns) { const a = assignments.get(t.ref); if (a) writes.set(a.row, ""); }
+    await writeColumn(COL_PAYMENT, writes);
+  }
+
+  async function setCategory(txn, category) {
+    const assignments = await freshAssignments();
+    const a = assignments.get(txn.ref);
+    if (!a) throw new Error("La hoja cambió. Actualiza e intenta de nuevo.");
+    await writeColumn(COL_CATEGORY, new Map([[a.row, category]]));
+  }
+
+  // ---------- Derived data ----------
+  function inPeriod(t) {
+    const fam = familyOf(t);
+    if (state.brand && fam !== state.brand) return false;
+    const st = statementFor(fam);
+    if (!st) return true;
+    return t.date >= st.start && t.date <= st.end;
+  }
+  function matchesQuery(t) {
+    const q = state.query.trim().toLowerCase();
+    if (!q) return true;
+    return [t.merchant, t.description, t.location, t.holder, t.ref, t.auth, t.category, t.last, t.cardType, String(t.amount)]
+      .some((v) => String(v).toLowerCase().includes(q));
+  }
+  const byDateDesc = (a, b) => (b.date || "").localeCompare(a.date || "") || b.row - a.row;
+
+  // ---------- Rendering ----------
+  function render() {
+    renderChrome();
+    const main = $("#main");
+    if (state.mcp === null) {
+      main.innerHTML = notice({ title: "Abre AstroFinance en claude.ai", text: "Esta app lee y escribe tu hoja de Google a través de tu conector Google Sheets, que solo está disponible dentro de claude.ai." });
+      return;
+    }
+    if (state.txnError && !state.txns) {
+      main.innerHTML = notice(describeError(state.txnError), true);
+      return;
+    }
+    if (!state.txns) {
+      main.innerHTML = `<div class="summary">${'<div class="stat"><div class="label">Pendiente</div><div class="value num">…</div></div>'.repeat(2)}</div>` +
+        '<div class="skeleton"></div>'.repeat(6);
+      return;
+    }
+    const banner = state.txnError ? notice(describeError(state.txnError), true) : "";
+    if (state.tab === "pending") main.innerHTML = banner + renderPending();
+    else if (state.tab === "all") main.innerHTML = banner + renderAll();
+    else if (state.tab === "reconcile") main.innerHTML = banner + renderReconcile();
+    else main.innerHTML = banner + renderPayments();
+    renderSelection();
+  }
+
+  function renderChrome() {
+    document.querySelector(".controls").hidden = state.tab === "reconcile";
+    document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === state.tab ? "page" : "false"));
+    $("#periods").innerHTML = PERIODS.map((p) => `<button class="chip" type="button" data-period="${p.id}" aria-pressed="${p.id === state.period}">${p.label}</button>`).join("");
+    $("#periodLabel").textContent = state.period === "all" ? "Todos los movimientos"
+      : CARD_FAMILIES.filter((f) => !state.brand || f.id === state.brand).map((f) => {
+          const st = statementFor(f.id);
+          return `${f.short}: ${fmtDate(st.start)} – ${fmtDate(st.end)}`;
+        }).join(" · ");
+    const sync = $("#sync");
+    if (state.txnError && state.txns) sync.textContent = "Sin conexión · mostrando lo último";
+    else if (state.updatedAt) sync.textContent = (state.revalidating ? "Actualizando… · " : "") + "Actualizado " + ago(state.updatedAt);
+    const pendingCount = state.txns ? state.txns.filter((t) => !t.paymentId && inPeriod(t)).length : 0;
+    const badge = $("#pendingBadge");
+    badge.hidden = !pendingCount; badge.textContent = pendingCount;
+  }
+  function ago(ts) {
+    const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+    if (s < 60) return "ahora";
+    if (s < 3600) return `hace ${Math.round(s / 60)} min`;
+    if (s < 86400) return `hace ${Math.round(s / 3600)} h`;
+    return `hace ${Math.round(s / 86400)} d`;
+  }
+
+  function notice(info, isError) {
+    return `<div class="notice${isError ? " error" : ""}"><h3>${esc(info.title)}</h3><p>${esc(info.text)}</p>
+      ${info.allow ? '<button class="btn" type="button" data-action="allow">Permitir acceso</button>' : ""}
+      ${info.retry ? '<button class="btn secondary" type="button" data-action="refresh">Reintentar</button>' : ""}</div>`;
+  }
+
+  function txnRow(t, { selectable, showHolder, showStatus }) {
+    const sel = state.selected.has(t.ref);
+    const card = [t.cardType, t.last ? "••" + t.last : ""].filter(Boolean).join(" ");
+    return `<div class="row${sel ? " selected" : ""}">
+      ${selectable ? `<label class="pick"><input type="checkbox" data-pick="${esc(t.ref)}" ${sel ? "checked" : ""} aria-label="Seleccionar ${esc(t.merchant)}"></label>` : ""}
+      <button class="body" type="button" data-open="${esc(t.ref)}">
+        <span class="merchant">${esc(t.merchant)}</span>
+        <span class="amount num">${money(t.amount, t.currency)}</span>
+        <span class="meta"><span class="dot ${familyOf(t)}"></span>${fmtDate(t.date)} · <span class="card-tag">${esc(card)}</span>${showHolder ? " · " + esc(titleCase(t.holder)) : ""}${t.category ? ` <span class="pill cat">${esc(t.category)}</span>` : ""}</span>
+        <span class="side">${t.tag ? `<span class="pill ${tagClass(t.tag)}">${esc(t.tag)}</span>` : ""}${showStatus ? (t.paymentId ? '<span class="pill paid">Pagado</span>' : '<span class="pill pending">Pendiente</span>') : ""}</span>
+      </button>
+    </div>`;
+  }
+
+  function renderPending() {
+    const list = state.txns.filter((t) => !t.paymentId && inPeriod(t) && matchesQuery(t)).sort(byDateDesc);
+    const all = totalsByCurrency(list.filter(counts));
+    const groups = new Map();
+    for (const t of list) { if (!groups.has(t.holder)) groups.set(t.holder, []); groups.get(t.holder).push(t); }
+    const ordered = [...groups.entries()].sort((a, b) => sumCRC(b[1].filter(counts)) - sumCRC(a[1].filter(counts)));
+    let html = renderDueTiles();
+    if (state.brand) {
+      html += `<div class="filter-note">Solo ${esc(familyById(state.brand).name)} · ${list.length} pendiente${list.length === 1 ? "" : "s"} · <span class="num">${totalsText(all)}</span><button type="button" data-brand="${state.brand}">Ver todas</button></div>`;
+    }
+    if (!list.length) {
+      return html + `<div class="empty">${state.query ? "Nada coincide con tu búsqueda." : "No hay nada pendiente en este estado de cuenta."}</div>`;
+    }
+    for (const [holder, items] of ordered) {
+      const collapsed = state.collapsed.has(holder);
+      const allSel = items.every((t) => state.selected.has(t.ref));
+      html += `<section class="group${collapsed ? " collapsed" : ""}">
+        <button class="group-head" type="button" data-toggle="${esc(holder)}" aria-expanded="${!collapsed}">
+          <span class="name">${esc(titleCase(holder))}<small>${items.length} pendiente${items.length === 1 ? "" : "s"}${items.some((t) => !counts(t)) ? ` · ${items.filter((t) => !counts(t)).length} Prox sin sumar` : ""}</small></span>
+          <span class="totals num">${totalsText(totalsByCurrency(items.filter(counts)), "<br>")}</span>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="rows">
+          <button class="select-all" type="button" data-selectall="${esc(holder)}">${allSel ? "Quitar selección" : "Seleccionar todos"}</button>
+          ${items.map((t) => txnRow(t, { selectable: true })).join("")}
+        </div>
+      </section>`;
+    }
+    return html;
+  }
+  // One tile per card family: when its next payment is due and what that statement holds.
+  function renderDueTiles() {
+    const tiles = CARD_FAMILIES.map((f) => {
+      const st = statementFor(f.id) || statement(f.id, nextStatementOffset(f.id));
+      const all = state.txns.filter((t) => familyOf(t) === f.id && t.date >= st.start && t.date <= st.end && matchesQuery(t));
+      const items = all.filter(counts);
+      const prox = all.length - items.length;
+      const pending = items.filter((t) => !t.paymentId);
+      const days = daysUntil(st.due);
+      const cls = days < 0 ? "late" : days <= 5 ? "soon" : "";
+      const dueLine = days < 0 ? `Venció el ${fmtDate(st.due)}` : `Vence ${fmtDate(st.due)} · ${whenText(st.due)}`;
+      const closeLine = st.open ? `Cierra ${fmtDate(st.end)} (${whenText(st.end)})` : `Cerró ${fmtDate(st.end)}`;
+      return `<button class="due-tile" type="button" data-brand="${f.id}" aria-pressed="${state.brand === f.id}">
+        <span class="brand-name"><span class="dot ${f.id}"></span>${esc(f.name)}</span>
+        <span class="due-when ${cls}">${dueLine}</span>
+        <span class="value num">${totalsText(totalsByCurrency(items), "<br>")}</span>
+        <span class="sub">${closeLine} · ${pending.length ? `${pending.length} sin cobrar: <span class="num">${totalsText(totalsByCurrency(pending))}</span>` : "todo cobrado"}${prox ? ` · ${prox} Prox sin sumar` : ""}</span>
+      </button>`;
+    }).join("");
+    return `<div class="due-grid">${tiles}</div>`;
+  }
+
+  // Only orders the groups (biggest balance first); the USD rate is a rough guess.
+  function sumCRC(items) { return items.reduce((s, t) => s + (t.currency === "USD" ? t.amount * 500 : t.amount), 0); }
+
+  function renderAll() {
+    const holders = [...new Set(state.txns.map((t) => t.holder))].sort();
+    const list = state.txns.filter((t) => inPeriod(t) && matchesQuery(t)
+      && (!state.holder || t.holder === state.holder)
+      && (state.status === "all" || (state.status === "paid" ? t.paymentId : !t.paymentId))).sort(byDateDesc);
+    let html = `<div class="filters-row">
+      <select id="holderFilter" aria-label="Titular"><option value="">Todos los titulares</option>${holders.map((h) => `<option value="${esc(h)}" ${h === state.holder ? "selected" : ""}>${esc(titleCase(h))}</option>`).join("")}</select>
+      <select id="brandFilter" aria-label="Tarjeta"><option value="">Todas las tarjetas</option>${CARD_FAMILIES.map((f) => `<option value="${f.id}" ${f.id === state.brand ? "selected" : ""}>${esc(f.name)}</option>`).join("")}</select>
+      <select id="statusFilter" aria-label="Estado">
+        ${[["all", "Todos"], ["pending", "Pendientes"], ["paid", "Pagados"]].map(([v, l]) => `<option value="${v}" ${v === state.status ? "selected" : ""}>${l}</option>`).join("")}
+      </select>
+    </div>
+    <div class="summary"><div class="stat" style="grid-column: 1 / -1"><div class="label">Total en la vista</div><div class="value num">${totalsText(totalsByCurrency(list))}</div><div class="sub">${list.length} movimiento${list.length === 1 ? "" : "s"}</div></div></div>`;
+    if (!list.length) return html + `<div class="empty">No hay movimientos con estos filtros.</div>`;
+    html += `<section class="group">${list.map((t) => txnRow(t, { selectable: !t.paymentId, showHolder: !state.holder, showStatus: true })).join("")}</section>`;
+    return html;
+  }
+
+  function paymentStats(p) {
+    const covered = state.txns.filter((t) => t.paymentId === p.id);
+    const sameCur = covered.filter((t) => t.currency === p.currency);
+    const coveredSum = sameCur.reduce((s, t) => s + t.amount, 0);
+    return { covered, coveredSum, delta: p.amount - coveredSum };
+  }
+
+  function renderPayments() {
+    if (state.payError && !state.payments) return notice(describeError(state.payError), true);
+    if (!state.payments) return '<div class="skeleton"></div>'.repeat(4);
+    const q = state.query.trim().toLowerCase();
+    const list = state.payments.filter((p) => !q || [p.id, p.notes, String(p.amount)].some((v) => v.toLowerCase().includes(q)))
+      .sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.row - a.row);
+    if (!list.length) {
+      return `<div class="empty">${state.payments.length ? "Ningún pago coincide." : "Aún no hay pagos registrados. Selecciona movimientos pendientes y toca <strong>Marcar pagado</strong>."}</div>`;
+    }
+    return `<h2 class="section-title">${list.length} pago${list.length === 1 ? "" : "s"}</h2><section class="group">` + list.map((p) => {
+      const s = paymentStats(p);
+      const off = Math.abs(s.delta) >= 0.01;
+      return `<button class="pay-card" type="button" data-payment="${esc(p.id)}">
+        <span class="title">${fmtDate(p.date, true)}${p.notes ? " · " + esc(p.notes) : ""}</span>
+        <span class="num" style="text-align:right;font-weight:600">${money(p.amount, p.currency)}</span>
+        <span class="meta">${s.covered.length} movimiento${s.covered.length === 1 ? "" : "s"} · <span class="num">${esc(p.id)}</span></span>
+        <span class="meta num ${off ? "delta-off" : "delta-ok"}" style="text-align:right">${off ? (s.delta > 0 ? "Sobra " : "Falta ") + money(Math.abs(s.delta), p.currency) : "Cuadra"}</span>
+      </button>`;
+    }).join("") + "</section>";
+  }
+
+  function selectedTxns() { return state.txns ? state.txns.filter((t) => state.selected.has(t.ref)) : []; }
+  function renderSelection() {
+    for (const ref of [...state.selected]) {
+      const t = state.txns && state.txns.find((x) => x.ref === ref);
+      if (!t || t.paymentId) state.selected.delete(ref);
+    }
+    const sel = selectedTxns();
+    $("#selbar").hidden = !sel.length || state.tab === "payments" || state.tab === "reconcile";
+    $("#app").classList.toggle("has-selection", !!sel.length);
+    if (sel.length) {
+      $("#selTotal").textContent = totalsText(totalsByCurrency(sel));
+      $("#selCount").textContent = `${sel.length} seleccionado${sel.length === 1 ? "" : "s"}`;
+    }
+  }
+
+  // ---------- Reconciliation ----------
+  // Compares the bank's CSV export with the Sheet. Read-only: nothing is written.
+  const RECON_FIELDS = [
+    { id: "reference", label: "Referencia o autorización" },
+    { id: "amount", label: "Monto" },
+    { id: "date", label: "Fecha" },
+  ];
+  // Matched against lower-cased, accent-free headers; most specific first.
+  const RECON_KEYWORDS = {
+    reference: ["referencia", "reference", "comprobante", "autorizacion", "authorization", "documento", "ref"],
+    amount: ["monto", "importe", "amount", "valor", "debito", "debit", "cargo"],
+    date: ["fecha de transaccion", "fecha transaccion", "fecha de compra", "fecha", "transaction date", "date"],
+  };
+  const AMOUNT_TOLERANCE = 0.01;
+  const DATE_TOLERANCE_DAYS = 3; // banks often post a day or two after the email
+
+  const normHeader = (h) => String(h || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+  function parseCsv(text) {
+    text = text.replace(/^\uFEFF/, "");
+    const firstLine = text.split(/\r?\n/, 1)[0] || "";
+    const delimiter = [",", ";", "\t"].map((d) => [d, firstLine.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+    const rows = []; let row = [], cell = "", quoted = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (quoted) {
+        if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+        else if (ch === '"') quoted = false;
+        else cell += ch;
+      } else if (ch === '"') quoted = true;
+      else if (ch === delimiter) { row.push(cell); cell = ""; }
+      else if (ch === "\n" || ch === "\r") {
+        if (ch === "\r" && text[i + 1] === "\n") i++;
+        row.push(cell); rows.push(row); row = []; cell = "";
+      } else cell += ch;
+    }
+    if (cell || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter((r) => r.some((c) => c.trim()));
+  }
+
+  function guessColumns(headers) {
+    const taken = new Set(), map = {};
+    for (const f of RECON_FIELDS) {
+      map[f.id] = "";
+      for (const kw of RECON_KEYWORDS[f.id]) {
+        const hit = headers.find((h) => !taken.has(h) && normHeader(h).includes(kw));
+        if (hit) { map[f.id] = hit; taken.add(hit); break; }
+      }
+    }
+    return map;
+  }
+
+  // Bank exports in Costa Rica write day/month/year; ISO and month-first are also accepted.
+  function parseStatementDate(raw) {
+    const t = String(raw ?? "").trim();
+    let m = t.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (m) return iso(+m[1], +m[2], +m[3]);
+    m = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+    if (!m) return "";
+    let [a, b, y] = [+m[1], +m[2], +m[3]];
+    if (y < 100) y += 2000;
+    const [day, month] = b > 12 && a <= 12 ? [b, a] : [a, b];
+    if (month < 1 || month > 12 || day < 1 || day > 31) return "";
+    return iso(y, month, day);
+  }
+
+  function savedReconMap(headers) {
+    const saved = store.get("reconMap", null);
+    if (!saved || typeof saved !== "object") return null;
+    const ok = RECON_FIELDS.every((f) => !saved[f.id] || headers.includes(saved[f.id]));
+    return ok && RECON_FIELDS.some((f) => saved[f.id]) ? saved : null;
+  }
+
+  function loadStatement(file) {
+    const finish = (text) => {
+      const rows = parseCsv(text);
+      if (rows.length < 2) { toast("Ese archivo no tiene filas para comparar.", true); return; }
+      const bac = parseBacStatement(rows);
+      if (bac) { state.recon = { name: file.name, kind: "bac", untagged: new Set(), ...bac }; render(); return; }
+      const headers = rows[0].map((h) => h.trim());
+      const body = rows.slice(1).map((r) => Object.fromEntries(headers.map((h, i) => [h, (r[i] ?? "").trim()])));
+      state.recon = { name: file.name, kind: "table", untagged: new Set(), headers, rows: body, map: savedReconMap(headers) || guessColumns(headers), family: state.recon ? state.recon.family || "" : "" };
+      render();
+    };
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || "");
+      // Exports from Excel in Spanish are often Windows-1252, not UTF-8.
+      if (text.includes("\uFFFD")) {
+        const latin = new FileReader();
+        latin.onload = () => finish(String(latin.result || ""));
+        latin.readAsText(file, "windows-1252");
+      } else finish(text);
+    };
+    reader.onerror = () => toast("No se pudo leer el archivo.", true);
+    reader.readAsText(file, "utf-8");
+  }
+
+  // ----- BAC "Transacciones del mes" export -----
+  // Not a flat table: a summary line (card, cutoff, due date, minimum and cash
+  // payment), then "Date, , Local, Dollars" and one line per movement. Card
+  // numbers on their own line start each card's section. Colones and dollars
+  // are separate columns, and the description is the merchant padded to 25
+  // characters followed by the location.
+  const CARD_LINE = /^\d{4}-\d{2}\*\*-\*{4}-(\d{4})$/;
+  function parseBacStatement(rows) {
+    const cells = rows.map((r) => r.map((c) => String(c ?? "").trim()));
+    const start = cells.findIndex((r) => normHeader(r[0]) === "date" && /local/i.test(r[2] || "") && /dollar/i.test(r[3] || ""));
+    if (start < 1) return null;
+    const head = cells[0].map(normHeader), vals = cells[1] || [];
+    const pick = (re, fallback) => { const i = head.findIndex((h) => re.test(h)); return vals[i >= 0 ? i : fallback] || ""; };
+    const cardMatch = (vals[0] || "").match(CARD_LINE);
+    const meta = {
+      card: cardMatch ? cardMatch[1] : "",
+      holder: (vals[1] || "").replace("/", " "),
+      cutoff: parseStatementDate(pick(/^date$/, 2)),
+      due: parseStatementDate(pick(/minimum.*due/, 3)),
+      minimum: { CRC: parseAmount(pick(/minimum.*local/, 4)), USD: parseAmount(pick(/minimum.*dollar/, 5)) },
+      cash: { CRC: parseAmount(pick(/cash.*local/, 7)), USD: parseAmount(pick(/cash.*dollar/, 8)) },
+      previous: null,
+      balance: null,
+      interest: null,
+    };
+    const entries = [];
+    let card = meta.card;
+    for (let i = start + 1; i < cells.length; i++) {
+      const [d = "", desc = "", local = "", usd = ""] = cells[i];
+      if (/current interest/i.test(d)) {
+        const n = (cells[i + 1] || []).map(parseAmount);
+        meta.interest = { CRC: n[0] || 0, USD: n[1] || 0 };
+        meta.balance = { CRC: n[2] || 0, USD: n[3] || 0 };
+        break;
+      }
+      const cardRow = !d && desc.match(CARD_LINE);
+      if (cardRow) { card = cardRow[1]; continue; }
+      if (!d && /^previous balance/i.test(desc)) { meta.previous = { CRC: parseAmount(local), USD: parseAmount(usd) }; continue; }
+      const date = parseStatementDate(d);
+      for (const [currency, raw] of [["CRC", local], ["USD", usd]]) {
+        const amount = parseAmount(raw);
+        if (!amount) continue;
+        entries.push({ id: entries.length, date, card, currency, amount, desc, name: bacName(desc), kind: bacKind(desc, date, amount) });
+      }
+    }
+    if (!entries.length && !meta.cutoff) return null;
+    return { meta, entries };
+  }
+  function bacName(desc) {
+    const cuota = desc.match(/^(.*?)\s+CUOTA:?\s*(\d+)\/(\d+)/i);
+    if (cuota) return `${cuota[1].trim()} · cuota ${+cuota[2]} de ${+cuota[3]}`;
+    if (/^IVA\s*-/i.test(desc)) return "IVA · " + desc.replace(/^IVA\s*-/i, "").split("-")[0].trim();
+    // The merchant is padded to 25 characters and followed by the location;
+    // long reference numbers (airline tickets) are dropped.
+    const name = /\s{2,}/.test(desc) ? desc.split(/\s{2,}/)[0] : desc.slice(0, 25);
+    return name.replace(/\s*\d{6,}.*$/, "").trim() || desc.trim();
+  }
+  function bacKind(desc, date, amount) {
+    if (/PAGO RECIBIDO|SU PAGO/i.test(desc)) return "payment";
+    if (/^IVA\s*-/i.test(desc) || /CUOTA:?\s*\d+\/\d+/i.test(desc) || /INTERES|COMISION|ANUALIDAD|MEMBRESIA|CARGO POR/i.test(desc) || !date) return "fee";
+    return amount < 0 ? "payment" : "purchase";
+  }
+
+  // Words that say nothing about who the merchant is.
+  const NAME_NOISE = new Set(["DLC", "BKG", "THE", "INC", "COM", "WWW", "HTTPS", "GOOGLE", "PAYPAL", "AMZN", "CAFE", "SUPER", "MARKET", "REST", "RESTAURANTE", "HOTEL", "PLAZA", "SAN", "JOSE", "CENTRAL", "DEL", "LAS", "LOS"]);
+  function nameTokens(s) {
+    return String(s || "").toUpperCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^A-Z0-9]+/g, " ")
+      .split(" ").filter((w) => w.length >= 3 && !NAME_NOISE.has(w) && !/^\d+$/.test(w));
+  }
+  function similarNames(a, b) {
+    const ta = nameTokens(a), tb = nameTokens(b);
+    return ta.some((x) => tb.some((y) => x === y || (x.length >= 5 && y.length >= 5 && x.slice(0, 5) === y.slice(0, 5))));
+  }
+  const sumOf = (list) => list.reduce((s, e) => s + e.amount, 0);
+  const sameAmount = (a, b) => Math.abs(Math.abs(a) - Math.abs(b)) < AMOUNT_TOLERANCE;
+
+  function reconcileBac() {
+    const { meta, entries } = state.recon;
+    const purchases = entries.filter((e) => e.kind === "purchase");
+    const cards = new Set(entries.map((e) => e.card).filter(Boolean));
+    if (meta.card) cards.add(meta.card);
+    const dates = purchases.map((e) => e.date).filter(Boolean).sort();
+    const cutoff = meta.cutoff || dates[dates.length - 1] || todayIso();
+    const [cy, cm, cd] = cutoff.split("-").map(Number);
+    const windowStart = addDays(cutoffFor(...shiftMonth(cy, cm, -1), cd), 1);
+    const lo = addDays(dates[0] && dates[0] < windowStart ? dates[0] : windowStart, -DATE_TOLERANCE_DAYS);
+    const hi = addDays(cutoff, DATE_TOLERANCE_DAYS);
+    const pool = state.txns.filter((t) => cards.has(String(t.last)) && t.date >= lo && t.date <= hi && t.amount);
+
+    const usedTxn = new Set(), usedEntry = new Set();
+    const report = { matched: [], mismatched: [], missingInSheet: [], missingInStatement: [], nextStatement: [], fees: [], payments: [], cutoff, windowStart };
+    const near = (t, e) => String(t.last) === e.card && e.date && Math.abs(daysBetween(t.date, e.date)) <= DATE_TOLERANCE_DAYS;
+    const take = (txn, group) => { usedTxn.add(txn.row); group.forEach((e) => usedEntry.add(e.id)); };
+    const freeEntries = () => purchases.filter((e) => !usedEntry.has(e.id));
+    const freeTxns = () => pool.filter((t) => !usedTxn.has(t.row));
+
+    // 1. Same amount and currency within a few days; a similar name wins ties.
+    for (const strict of [true, false]) {
+      for (const e of freeEntries()) {
+        const best = freeTxns()
+          .filter((t) => near(t, e) && t.currency === e.currency && sameAmount(t.amount, e.amount) && (!strict || similarNames(t.merchant, e.name)))
+          .sort((a, b) => Math.abs(daysBetween(a.date, e.date)) - Math.abs(daysBetween(b.date, e.date)))[0];
+        if (best) { take(best, [e]); report.matched.push({ txn: best, entries: [e] }); }
+      }
+    }
+    // 2. One email, several bank lines (e.g. one ticket per passenger).
+    for (const t of freeTxns()) {
+      const cands = freeEntries().filter((e) => near(t, e) && e.currency === t.currency && similarNames(t.merchant, e.name));
+      const byDate = Object.values(cands.reduce((m, e) => ((m[e.date] = m[e.date] || []).push(e), m), {}));
+      const group = [cands, ...byDate].find((g) => g.length > 1 && sameAmount(sumOf(g), t.amount));
+      if (group) { take(t, group); report.matched.push({ txn: t, entries: group, note: `${group.length} cargos en el estado suman lo mismo.` }); }
+    }
+    // 3. Charged in a different currency than the email (EUR -> USD, ₡ -> $).
+    for (const t of freeTxns()) {
+      const group = freeEntries().filter((e) => near(t, e) && e.currency !== t.currency && similarNames(t.merchant, e.name));
+      if (group.length) {
+        take(t, group);
+        const total = totalsText(totalsByCurrency(group));
+        report.matched.push({ txn: t, entries: group, note: `El correo dice ${money(t.amount, t.currency)}; el banco lo cobró como ${total}.` });
+      }
+    }
+    // 4. Same merchant and day, different amount.
+    for (const e of freeEntries()) {
+      const t = freeTxns().filter((x) => near(x, e) && x.currency === e.currency && similarNames(x.merchant, e.name))
+        .sort((a, b) => Math.abs(daysBetween(a.date, e.date)) - Math.abs(daysBetween(b.date, e.date)))[0];
+      if (t) {
+        take(t, [e]);
+        report.mismatched.push({ txn: t, entries: [e], warn: true, bank: { amount: e.amount, currency: e.currency }, note: `La hoja dice ${money(t.amount, t.currency)} y el banco ${money(e.amount, e.currency)} (diferencia ${money(e.amount - t.amount, e.currency)}).` });
+      }
+    }
+    report.missingInSheet = freeEntries();
+    const lastPosted = dates[dates.length - 1] || cutoff;
+    for (const t of freeTxns().filter((x) => x.date >= windowStart && x.date <= cutoff).sort(byDateDesc)) {
+      // Purchases from the last days before the cutoff often post after it.
+      (t.date > lastPosted ? report.nextStatement : report.missingInStatement).push(t);
+    }
+    report.fees = entries.filter((e) => e.kind === "fee");
+    report.payments = entries.filter((e) => e.kind === "payment");
+    return report;
+  }
+
+  function reconcileStatement() {
+    const { rows, map, family } = state.recon;
+    const pool = state.txns.filter((t) => !family || familyOf(t) === family);
+    const byRef = new Map();
+    for (const t of pool) { byRef.set(t.ref, t); if (t.auth) byRef.set(t.auth, byRef.get(t.auth) || t); }
+    const matchedIds = new Set();
+    const report = { matched: [], mismatched: [], missingInSheet: [], missingInStatement: [], nextStatement: [], period: null };
+    const dates = [];
+
+    for (const row of rows) {
+      const reference = map.reference ? row[map.reference] || "" : "";
+      const amount = map.amount ? Math.abs(parseAmount(row[map.amount])) : null;
+      const rawAmount = map.amount ? String(row[map.amount] || "").trim() : "";
+      const date = map.date ? parseStatementDate(row[map.date]) : "";
+      if (date) dates.push(date);
+      const entry = { row, reference, amount: rawAmount ? amount : null, date };
+
+      let txn = reference ? byRef.get(reference) || null : null;
+      if (txn && matchedIds.has(txn.row)) {
+        report.mismatched.push({ ...entry, txn, reason: "La referencia aparece más de una vez en el estado." });
+        continue;
+      }
+      if (!txn && entry.amount != null && date) {
+        const lo = addDays(date, -DATE_TOLERANCE_DAYS), hi = addDays(date, DATE_TOLERANCE_DAYS);
+        txn = pool
+          .filter((t) => !matchedIds.has(t.row) && t.date >= lo && t.date <= hi && Math.abs(Math.abs(t.amount) - entry.amount) < AMOUNT_TOLERANCE)
+          .sort((a, b) => Math.abs(daysBetween(a.date, date)) - Math.abs(daysBetween(b.date, date)))[0] || null;
+      }
+      if (!txn) { report.missingInSheet.push(entry); continue; }
+      matchedIds.add(txn.row);
+      if (entry.amount != null && Math.abs(Math.abs(txn.amount) - entry.amount) >= AMOUNT_TOLERANCE) {
+        report.mismatched.push({ ...entry, txn, bank: { amount: entry.amount, currency: txn.currency }, reason: `El monto no coincide: hoja ${money(txn.amount, txn.currency)}, estado ${money(entry.amount, txn.currency)}.` });
+      } else report.matched.push({ ...entry, txn });
+    }
+    if (dates.length) {
+      dates.sort();
+      report.period = [dates[0], dates[dates.length - 1]];
+      report.missingInStatement = pool
+        .filter((t) => !matchedIds.has(t.row) && t.date >= report.period[0] && t.date <= report.period[1])
+        .sort(byDateDesc);
+    }
+    return report;
+  }
+  function daysBetween(a, b) {
+    const [y1, m1, d1] = a.split("-").map(Number), [y2, m2, d2] = b.split("-").map(Number);
+    return Math.round((new Date(y1, m1 - 1, d1) - new Date(y2, m2 - 1, d2)) / 86400000);
+  }
+
+  const reconStat = (label, n, bad) => `<div class="stat${bad && n ? " bad" : ""}"><div class="label">${label}</div><div class="value num">${n}</div></div>`;
+  const reconSection = (title, items, row, note = "") => `<h2 class="section-title">${title} <span class="period-label">(${items.length})</span></h2>` +
+    (note && items.length ? `<p class="period-label" style="margin:-4px 0 8px">${note}</p>` : "") +
+    (items.length ? `<section class="group">${items.map(row).join("")}</section>` : `<div class="empty">Nada aquí.</div>`);
+
+  // "Aceptar cambio": the bank is right, so the Sheet takes the bank's amount.
+  const acceptButton = (m) => (m.bank && m.txn ? `<span class="actions"><button class="btn secondary" type="button" data-accept="${esc(m.txn.ref)}" data-amount="${m.bank.amount}" data-currency="${esc(m.bank.currency)}">Aceptar cambio · ${money(m.bank.amount, m.bank.currency)}</button></span>` : "");
+  async function acceptBankAmount(btn) {
+    const txn = state.txns.find((t) => t.ref === btn.dataset.accept);
+    const amount = Number(btn.dataset.amount), currency = btn.dataset.currency;
+    if (!txn || !isFinite(amount)) return;
+    btn.disabled = true; btn.textContent = "Guardando…";
+    try {
+      const a = (await freshAssignments()).get(txn.ref);
+      if (!a) throw new Error("La hoja cambió. Actualiza e intenta de nuevo.");
+      await sheetCall("update_values", {
+        spreadsheetId: settings.sheetId,
+        range: `Transactions!${COL_CURRENCY}${a.row}:${COL_AMOUNT}${a.row}`,
+        values: [[currency, amount]],
+      });
+      const before = money(txn.amount, txn.currency);
+      txn.amount = amount; txn.currency = currency;
+      toast(`${txn.merchant}: ${before} → ${money(amount, currency)} en la hoja.`);
+      render();
+    } catch (err) {
+      btn.disabled = false; btn.textContent = "Aceptar cambio";
+      toast(err.message || "No se pudo guardar.", true);
+    }
+  }
+
+  // ----- Tags: proposed while reconciling, written to the Sheet on "Concluir" -----
+  function taggedRow(t, tag) {
+    const removed = state.recon.untagged.has(t.ref);
+    return `<div class="recon-row">
+      <span class="what">${esc(t.merchant)}</span><span class="num">${money(t.amount, t.currency)}</span>
+      <span class="meta">${fmtDate(t.date, true)} · ${esc(t.cardType)} ••${esc(t.last)} · ${esc(titleCase(t.holder))}${t.paymentId ? " · pagado" : ""}</span>
+      <span class="tagline">${state.recon.concluded
+        ? (removed ? "Sin etiqueta" : `<span class="pill ${tagClass(tag)}">${esc(tag)}</span>`)
+        : removed
+        ? `Sin etiqueta <button type="button" data-retag="${esc(t.ref)}">Volver a poner “${esc(tag)}”</button>`
+        : `<span class="pill ${tagClass(tag)}">${esc(tag)}</span><button type="button" data-untag="${esc(t.ref)}" data-tag="${esc(tag)}">Quitar etiqueta</button>`}</span>
+    </div>`;
+  }
+  // What each charge's Tag should be after this reconciliation.
+  function reconTagWrites(r) {
+    const want = new Map();
+    for (const m of [...r.matched, ...r.mismatched]) if (m.txn) want.set(m.txn.ref, "");
+    for (const t of r.missingInStatement) want.set(t.ref, TAG_WAIT);
+    for (const t of r.nextStatement || []) want.set(t.ref, TAG_NEXT);
+    for (const ref of state.recon.untagged) if (want.has(ref)) want.set(ref, "");
+    const writes = [];
+    for (const [ref, tag] of want) {
+      const t = state.txns.find((x) => x.ref === ref);
+      if (t && t.tag !== tag) writes.push({ txn: t, tag });
+    }
+    return writes;
+  }
+  function renderConclude(r) {
+    state.recon.report = r;
+    if (state.recon.concluded) {
+      return `<div class="conclude"><div class="notice"><h3>Conciliación concluida</h3><p style="margin:0">Las etiquetas quedaron guardadas en tu hoja. Sube otro CSV para conciliar otro estado.</p></div></div>`;
+    }
+    const writes = reconTagWrites(r);
+    return `<div class="conclude">
+      <button class="btn" type="button" data-conclude="1">Concluir conciliación</button>
+      <p>${writes.length ? `Guarda ${writes.length} cambio${writes.length === 1 ? "" : "s"} de etiqueta en tu hoja.` : "No hay etiquetas que cambiar en tu hoja."}</p>
+    </div>`;
+  }
+  function openUntag(btn) {
+    const t = state.txns.find((x) => x.ref === btn.dataset.untag);
+    if (!t) return;
+    openModal(`<h2>¿Quitar la etiqueta “${esc(btn.dataset.tag)}”?</h2>
+      <p class="lede">${esc(t.merchant)} · ${money(t.amount, t.currency)} · ${fmtDate(t.date, true)}</p>
+      <p class="lede">${btn.dataset.tag === TAG_NEXT ? "Volverá a sumarse en el estado de su fecha." : "Ya no se marcará como pendiente de aparecer en el banco."} El cambio se guarda en tu hoja al concluir la conciliación.</p>
+      <div class="actions"><button class="btn secondary" type="button" id="untagNo">Cancelar</button><button class="btn" type="button" id="untagYes">Quitar etiqueta</button></div>`, (host) => {
+      host.querySelector("#untagNo").onclick = closeModal;
+      host.querySelector("#untagYes").onclick = () => { state.recon.untagged.add(t.ref); closeModal(); render(); };
+    });
+  }
+  function openConclude() {
+    const writes = reconTagWrites(state.recon.report);
+    const n = (tag) => writes.filter((w) => w.tag === tag).length;
+    const lines = [[TAG_NEXT, n(TAG_NEXT)], [TAG_WAIT, n(TAG_WAIT)]].filter(([, k]) => k).map(([tag, k]) => `<li>${k} con “${tag}”</li>`);
+    const cleared = n("");
+    if (cleared) lines.push(`<li>${cleared} sin etiqueta (ya aparecieron en el banco o la quitaste)</li>`);
+    openModal(`<h2>Concluir conciliación</h2>
+      ${writes.length ? `<p class="lede">Esto guarda en tu hoja (columna Tag):</p><ul class="lede">${lines.join("")}</ul>` : `<p class="lede">No hay etiquetas que cambiar. Se marca como concluida.</p>`}
+      <div class="actions"><button class="btn secondary" type="button" id="concNo">Cancelar</button><button class="btn" type="button" id="concYes">Concluir</button></div>`, (host) => {
+      host.querySelector("#concNo").onclick = closeModal;
+      const yes = host.querySelector("#concYes");
+      yes.onclick = async () => {
+        yes.disabled = true; yes.textContent = "Guardando…";
+        try {
+          await saveTags(writes);
+          state.recon.concluded = true;
+          closeModal(); toast(writes.length ? `Conciliación concluida: ${writes.length} etiqueta${writes.length === 1 ? "" : "s"} guardada${writes.length === 1 ? "" : "s"}.` : "Conciliación concluida."); render();
+        } catch (err) { yes.disabled = false; yes.textContent = "Concluir"; toast(writeErrorText(err), true); }
+      };
+    });
+  }
+  async function saveTags(writes) {
+    if (!writes.length) return;
+    if (!state.hasTagHeader) {
+      const head = valuesOf(await sheetCall("get_values", { spreadsheetId: settings.sheetId, range: `Transactions!${COL_TAG}1` }));
+      const current = String((head[0] && head[0][0]) ?? "").trim();
+      if (current && current !== "Tag") throw new Error(`La columna ${COL_TAG} de Transactions ya tiene otro encabezado (“${current}”).`);
+      if (!current) await sheetCall("update_values", { spreadsheetId: settings.sheetId, range: `Transactions!${COL_TAG}1`, values: [["Tag"]] });
+      state.hasTagHeader = true;
+    }
+    const assignments = await freshAssignments();
+    const rows = new Map();
+    for (const w of writes) { const a = assignments.get(w.txn.ref); if (a) rows.set(a.row, w.tag); }
+    await writeColumn(COL_TAG, rows);
+    for (const w of writes) w.txn.tag = w.tag;
+  }
+
+  function renderReconcile() {
+    let html = `<h2 class="section-title">Conciliar con el estado del banco</h2>
+      <p class="period-label">Sube el CSV de “Transacciones del mes” del BAC (u otro CSV del banco). Lo comparo con tu hoja aquí mismo; no se modifica nada.</p>
+      <label class="upload" for="reconFile">
+        <strong>${state.recon ? "Cambiar archivo" : "Elegir CSV del banco"}</strong>
+        <span>${state.recon ? esc(state.recon.name) + (state.recon.kind === "bac" ? ` · ${state.recon.entries.length} movimientos` : ` · ${state.recon.rows.length} filas`) : "Separado por comas o punto y coma"}</span>
+        <input id="reconFile" type="file" accept=".csv,text/csv,text/plain">
+      </label>`;
+    if (!state.recon) return html;
+    return html + (state.recon.kind === "bac" ? renderBacReconcile() : renderTableReconcile());
+  }
+
+  function renderBacReconcile() {
+    const { meta } = state.recon;
+    const r = reconcileBac();
+    const pair = (o) => (o ? totalsText(Object.fromEntries(Object.entries(o).filter(([, v]) => v)), " + ") : "—");
+    const cards = [...new Set(state.recon.entries.map((e) => e.card).filter(Boolean))];
+    let html = `<div class="notice" style="margin-top:14px">
+      <h3>Estado BAC · tarjeta ••${esc(meta.card || "?")}</h3>
+      <p style="margin:0 0 6px">Corte ${fmtDate(meta.cutoff, true)} · cubre del ${fmtDate(r.windowStart, true)} al ${fmtDate(r.cutoff, true)}${cards.length > 1 ? ` · tarjetas ${cards.map((c) => "••" + esc(c)).join(", ")}` : ""}</p>
+      <p style="margin:0 0 6px">Pago de contado <strong class="num">${pair(meta.cash)}</strong>${meta.due ? ` antes del ${fmtDate(meta.due, true)} (${whenText(meta.due)})` : ""}</p>
+      <p style="margin:0">Pago mínimo <span class="num">${pair(meta.minimum)}</span>${meta.interest && (meta.interest.CRC || meta.interest.USD) ? ` · intereses si pagas solo el mínimo <span class="num">${pair(meta.interest)}</span>` : ""}</p>
+    </div>`;
+    html += `<div class="recon-summary">
+      ${reconStat("Coinciden", r.matched.length)}${reconStat("Con diferencias", r.mismatched.length, true)}
+      ${reconStat("Solo en el banco", r.missingInSheet.length, true)}${reconStat("Solo en la hoja", r.missingInStatement.length, true)}
+    </div>`;
+
+    const entryText = (list) => list.map((e) => `${esc(e.name)} ${money(e.amount, e.currency)}`).join(" + ");
+    const entryRow = (e) => `<div class="recon-row">
+      <span class="what">${esc(e.name)}</span><span class="num">${money(e.amount, e.currency)}</span>
+      <span class="meta">${e.date ? fmtDate(e.date, true) : "sin fecha"}${e.card ? " · ••" + esc(e.card) : ""}</span>
+    </div>`;
+    const pairRow = (m) => `<div class="recon-row">
+      <span class="what">${esc(m.txn.merchant)}</span><span class="num">${money(m.txn.amount, m.txn.currency)}</span>
+      <span class="meta">${fmtDate(m.txn.date, true)} · ••${esc(m.txn.last)} · ${esc(titleCase(m.txn.holder))} · banco: ${entryText(m.entries)}</span>
+      ${m.note ? `<span class="${m.warn ? "why" : "note"}">${esc(m.note)}</span>` : ""}${acceptButton(m)}
+    </div>`;
+    const totalsNote = (list) => `Total <span class="num">${totalsText(totalsByCurrency(list))}</span>`;
+
+    html += reconSection("Con diferencias", r.mismatched, pairRow);
+    html += reconSection("En el estado pero no en la hoja", r.missingInSheet, entryRow, "Compras que el banco cobró y que no llegaron por correo (o llegaron con otro monto o fecha).");
+    html += reconSection("En la hoja pero no en el estado", r.missingInStatement, (t) => taggedRow(t, TAG_WAIT), "Correos de este periodo sin cargo en el estado: posibles duplicados, reversiones o cargos que el banco aún no aplica.");
+    html += reconSection("Probablemente en el próximo estado", r.nextStatement, (t) => taggedRow(t, TAG_NEXT), "Son de los últimos días antes del corte y el banco todavía no las había aplicado.");
+    html += reconSection("Cargos e impuestos del banco", r.fees, entryRow, totalsNote(r.fees) + " · IVA de servicios digitales, cuotas e intereses. No vienen en los correos.");
+    html += reconSection("Pagos que recibió el banco", r.payments, entryRow, r.payments.length ? totalsNote(r.payments) : "");
+    html += reconSection("Coinciden", r.matched, pairRow);
+    return html + renderConclude(r);
+  }
+
+  function renderTableReconcile() {
+    let html = "";
+    const { headers, map, family } = state.recon;
+    const opts = (sel) => `<option value="">(ninguna)</option>` + headers.map((h) => `<option value="${esc(h)}" ${h === sel ? "selected" : ""}>${esc(h)}</option>`).join("");
+    html += `<div class="map-grid">
+      ${RECON_FIELDS.map((f) => `<label>Columna: ${f.label}<select data-recon-col="${f.id}">${opts(map[f.id])}</select></label>`).join("")}
+      <label>Tarjetas a comparar<select id="reconFamily"><option value="">Todas</option>${CARD_FAMILIES.map((f) => `<option value="${f.id}" ${f.id === family ? "selected" : ""}>${esc(f.name)}</option>`).join("")}</select></label>
+    </div>`;
+    if (!map.amount || !map.date) {
+      html += `<div class="notice" style="margin-top:12px"><p style="margin:0">Elige la columna de ${!map.amount ? "monto" : "fecha"}: sin ella solo puedo emparejar por referencia y no sé qué fechas cubre el estado.</p></div>`;
+    }
+    const r = reconcileStatement();
+    html += `<div class="recon-summary">
+      ${reconStat("Coinciden", r.matched.length)}${reconStat("Con diferencias", r.mismatched.length, true)}
+      ${reconStat("No están en la hoja", r.missingInSheet.length, true)}${reconStat("No están en el estado", r.missingInStatement.length, true)}
+    </div>`;
+    if (r.period) html += `<p class="period-label" style="margin-top:8px">El estado cubre del ${fmtDate(r.period[0], true)} al ${fmtDate(r.period[1], true)}.</p>`;
+
+    const stmtRow = (e, extra = "") => `<div class="recon-row">
+      <span class="what">${e.txn ? esc(e.txn.merchant) : esc(Object.values(e.row).filter(Boolean).slice(0, 3).join(" · ") || "(fila vacía)")}</span>
+      <span class="num">${e.amount != null ? money(e.amount, e.txn ? e.txn.currency : "CRC") : ""}</span>
+      <span class="meta">${e.date ? fmtDate(e.date, true) : "sin fecha"}${e.reference ? " · ref " + esc(e.reference) : ""}${e.txn ? " · " + esc(titleCase(e.txn.holder)) : ""}</span>${extra}
+    </div>`;
+    html += reconSection("Con diferencias", r.mismatched, (e) => stmtRow(e, `<span class="why">${esc(e.reason)}</span>${acceptButton(e)}`));
+    html += reconSection("En el estado pero no en la hoja", r.missingInSheet, (e) => stmtRow(e));
+    html += reconSection("En la hoja pero no en el estado", r.missingInStatement, (t) => taggedRow(t, TAG_WAIT));
+    html += reconSection("Coinciden", r.matched, (e) => stmtRow(e));
+    return html + renderConclude(r);
+  }
+
+  // ---------- Sheets / modals ----------
+  function openModal(html, onMount) {
+    const host = $("#modal");
+    host.innerHTML = `<div class="scrim" data-close="1"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div></div>`;
+    host.querySelector(".scrim").addEventListener("click", (e) => { if (e.target.dataset.close) closeModal(); });
+    const first = host.querySelector("input, select, textarea, button.btn");
+    if (first) setTimeout(() => first.focus({ preventScroll: true }), 50);
+    if (onMount) onMount(host);
+  }
+  function closeModal() { $("#modal").innerHTML = ""; }
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+  function toast(text, isError) {
+    const host = $("#toastHost");
+    host.innerHTML = `<div class="toast${isError ? " error" : ""}" role="status">${esc(text)}</div>`;
+    clearTimeout(toast.t); toast.t = setTimeout(() => (host.innerHTML = ""), isError ? 6000 : 3000);
+  }
+
+  function writeErrorText(e) {
+    if (e && e.code) {
+      if (["server_unavailable", "upstream_error", "cancelled"].includes(e.code)) {
+        return "No hubo respuesta clara de Google Sheets; puede que el cambio sí se haya guardado. Actualiza y revisa antes de repetirlo.";
+      }
+      const d = describeError(e); return d.title + ". " + d.text;
+    }
+    return (e && e.message) || "No se pudo guardar.";
+  }
+
+  function openPay() {
+    const sel = selectedTxns();
+    if (!sel.length) return;
+    const totals = totalsByCurrency(sel);
+    const currencies = Object.keys(totals);
+    const cur = currencies.includes("CRC") ? "CRC" : currencies[0];
+    const recent = (state.payments || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 20);
+    openModal(`
+      <h2>Marcar como pagado</h2>
+      <p class="lede">${sel.length} movimiento${sel.length === 1 ? "" : "s"} · <span class="num">${totalsText(totals)}</span></p>
+      <div class="seg" role="group" aria-label="Tipo de pago">
+        <button type="button" id="modeNew" aria-pressed="true">Pago nuevo</button>
+        <button type="button" id="modeExisting" aria-pressed="false" ${recent.length ? "" : "disabled"}>Pago existente</button>
+      </div>
+      <form id="payForm" novalidate>
+        <div id="newFields">
+          <div class="field-row">
+            <div class="field"><label for="payAmount">Monto pagado</label><input id="payAmount" class="num" inputmode="decimal" value="${(totals[cur] || 0).toFixed(2)}"></div>
+            <div class="field"><label for="payCurrency">Moneda</label><select id="payCurrency">${["CRC", "USD"].map((c) => `<option ${c === cur ? "selected" : ""}>${c}</option>`).join("")}</select></div>
+          </div>
+          <div class="field"><label for="payDate">Fecha del pago</label><input id="payDate" type="date" value="${todayIso()}"></div>
+          <div class="field"><label for="payNotes">Nota (opcional)</label><input id="payNotes" placeholder="Ej. Transferencia BAC octubre"></div>
+        </div>
+        <div id="existingFields" hidden>
+          <div class="field"><label for="payExisting">Agregar al pago</label>
+            <select id="payExisting">${recent.map((p) => `<option value="${esc(p.id)}">${fmtDate(p.date, true)} · ${money(p.amount, p.currency)}${p.notes ? " · " + esc(p.notes) : ""}</option>`).join("")}</select>
+          </div>
+        </div>
+        <div class="form-error" id="payError" hidden></div>
+        <div class="actions">
+          <button class="btn secondary" type="button" id="payCancel">Cancelar</button>
+          <button class="btn" type="submit" id="paySubmit">Guardar en la hoja</button>
+        </div>
+      </form>`, (host) => {
+      let mode = "new";
+      const setMode = (m) => {
+        mode = m;
+        host.querySelector("#modeNew").setAttribute("aria-pressed", m === "new");
+        host.querySelector("#modeExisting").setAttribute("aria-pressed", m === "existing");
+        host.querySelector("#newFields").hidden = m !== "new";
+        host.querySelector("#existingFields").hidden = m !== "existing";
+      };
+      host.querySelector("#modeNew").onclick = () => setMode("new");
+      host.querySelector("#modeExisting").onclick = () => setMode("existing");
+      host.querySelector("#payCurrency").onchange = (e) => { host.querySelector("#payAmount").value = (totals[e.target.value] || 0).toFixed(2); };
+      host.querySelector("#payCancel").onclick = closeModal;
+      host.querySelector("#payForm").onsubmit = async (e) => {
+        e.preventDefault();
+        const errEl = host.querySelector("#payError");
+        errEl.hidden = true;
+        let payment;
+        if (mode === "new") {
+          const amount = parseAmount(host.querySelector("#payAmount").value);
+          const date = host.querySelector("#payDate").value;
+          if (!(amount > 0)) { errEl.textContent = "Escribe el monto pagado."; errEl.hidden = false; return; }
+          if (!date) { errEl.textContent = "Elige la fecha del pago."; errEl.hidden = false; return; }
+          payment = { isNew: true, id: newPaymentId(), amount, date, currency: host.querySelector("#payCurrency").value, notes: host.querySelector("#payNotes").value.trim() };
+        } else {
+          payment = { isNew: false, id: host.querySelector("#payExisting").value };
+        }
+        const btn = host.querySelector("#paySubmit");
+        btn.disabled = true; btn.textContent = "Guardando…";
+        try {
+          await markPaid(sel, payment);
+          state.selected.clear();
+          closeModal();
+          toast(`${sel.length} movimiento${sel.length === 1 ? "" : "s"} marcado${sel.length === 1 ? "" : "s"} como pagado`);
+          refresh();
+        } catch (err) {
+          errEl.textContent = writeErrorText(err); errEl.hidden = false;
+          btn.disabled = false; btn.textContent = "Guardar en la hoja";
+        }
+      };
+    });
+  }
+
+  function openTxn(ref) {
+    const t = state.txns.find((x) => x.ref === ref);
+    if (!t) return;
+    const payment = t.paymentId && state.payments ? state.payments.find((p) => p.id === t.paymentId) : null;
+    const categories = [...new Set(state.txns.map((x) => x.category).filter(Boolean))].sort();
+    const st = t.date ? statementOfDate(familyOf(t), t.date) : null;
+    openModal(`
+      <h2>${esc(t.merchant)}</h2>
+      <div class="big-amount num">${money(t.amount, t.currency)}</div>
+      ${t.paymentId ? `<span class="pill paid">Pagado${payment ? " el " + fmtDate(payment.date, true) : ""}</span>` : '<span class="pill pending">Pendiente</span>'}
+      <dl class="kv">
+        <dt>Fecha</dt><dd>${fmtDate(t.date, true)}</dd>
+        <dt>Titular</dt><dd>${esc(titleCase(t.holder))}</dd>
+        <dt>Tarjeta</dt><dd class="num">${esc(t.cardType)} ••${esc(t.last)}</dd>
+        ${st ? `<dt>Estado de cuenta</dt><dd>${fmtDate(st.start)} – ${fmtDate(st.end, true)} · vence ${fmtDate(st.due, true)}</dd>` : ""}
+        <dt>Tipo</dt><dd>${esc(t.description || "—")}</dd>
+        <dt>Lugar</dt><dd>${esc(t.location || "—")}</dd>
+        <dt>Referencia</dt><dd class="num">${esc(t.ref)}</dd>
+        <dt>Autorización</dt><dd class="num">${esc(t.auth || "—")}</dd>
+        ${t.paymentId ? `<dt>Pago</dt><dd class="num">${esc(t.paymentId)}</dd>` : ""}
+        ${t.permalink ? `<dt>Correo</dt><dd><a class="link" href="${esc(t.permalink)}" target="_blank" rel="noopener">Abrir en Gmail ↗</a></dd>` : ""}
+      </dl>
+      <form id="catForm" class="field" novalidate>
+        <label for="catInput">Categoría</label>
+        <div style="display:flex;gap:8px">
+          <input id="catInput" list="catList" value="${esc(t.category)}" placeholder="Ej. Supermercado" style="flex:1;min-width:0">
+          <datalist id="catList">${categories.map((c) => `<option value="${esc(c)}"></option>`).join("")}</datalist>
+          <button class="btn secondary" type="submit" id="catSave">Guardar</button>
+        </div>
+      </form>
+      <div class="form-error" id="txnError" hidden></div>
+      <div class="actions">
+        ${t.paymentId ? '<button class="btn danger" type="button" id="txnUnmark">Volver a pendiente</button>'
+          : '<button class="btn" type="button" id="txnPay">Marcar pagado</button>'}
+        <button class="btn secondary" type="button" id="txnClose">Cerrar</button>
+      </div>`, (host) => {
+      const errEl = host.querySelector("#txnError");
+      host.querySelector("#txnClose").onclick = closeModal;
+      host.querySelector("#catForm").onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = host.querySelector("#catSave");
+        btn.disabled = true; btn.textContent = "Guardando…";
+        try { await setCategory(t, host.querySelector("#catInput").value.trim()); toast("Categoría guardada"); closeModal(); refresh(); }
+        catch (err) { errEl.textContent = writeErrorText(err); errEl.hidden = false; btn.disabled = false; btn.textContent = "Guardar"; }
+      };
+      const unmarkBtn = host.querySelector("#txnUnmark");
+      if (unmarkBtn) unmarkBtn.onclick = () => confirmInline(unmarkBtn, "¿Seguro? Toca otra vez", async () => {
+        try { await unmark([t]); toast("Vuelve a estar pendiente"); closeModal(); refresh(); }
+        catch (err) { errEl.textContent = writeErrorText(err); errEl.hidden = false; }
+      });
+      const payBtn = host.querySelector("#txnPay");
+      if (payBtn) payBtn.onclick = () => { state.selected = new Set([t.ref]); closeModal(); openPay(); };
+    });
+  }
+
+  function openPayment(id) {
+    const p = state.payments.find((x) => x.id === id);
+    if (!p) return;
+    const s = paymentStats(p);
+    const off = Math.abs(s.delta) >= 0.01;
+    openModal(`
+      <h2>Pago del ${fmtDate(p.date, true)}</h2>
+      <div class="big-amount num">${money(p.amount, p.currency)}</div>
+      <p class="lede">${p.notes ? esc(p.notes) + " · " : ""}<span class="num">${esc(p.id)}</span></p>
+      <dl class="kv">
+        <dt>Cubre</dt><dd class="num">${money(s.coveredSum, p.currency)} en ${s.covered.length} movimiento${s.covered.length === 1 ? "" : "s"}</dd>
+        <dt>Diferencia</dt><dd class="num ${off ? "delta-off" : "delta-ok"}">${off ? (s.delta > 0 ? "Sobra " : "Falta ") + money(Math.abs(s.delta), p.currency) : "Cuadra exacto"}</dd>
+      </dl>
+      ${s.covered.length ? `<div class="mini-list">${s.covered.sort(byDateDesc).map((t) => txnRow(t, { showHolder: true })).join("")}</div>` : '<div class="empty">Este pago no tiene movimientos.</div>'}
+      <div class="form-error" id="pmError" hidden></div>
+      <div class="actions">
+        ${s.covered.length ? '<button class="btn danger" type="button" id="pmUnlink">Devolver todos a pendiente</button>' : ""}
+        <button class="btn secondary" type="button" id="pmClose">Cerrar</button>
+      </div>`, (host) => {
+      host.querySelector("#pmClose").onclick = closeModal;
+      host.querySelectorAll("[data-open]").forEach((b) => (b.onclick = () => openTxn(b.dataset.open)));
+      const unlink = host.querySelector("#pmUnlink");
+      if (unlink) unlink.onclick = () => confirmInline(unlink, `¿Seguro? ${s.covered.length} vuelven a pendiente`, async () => {
+        try { await unmark(s.covered); toast("Movimientos de vuelta en pendiente"); closeModal(); refresh(); }
+        catch (err) { const el = host.querySelector("#pmError"); el.textContent = writeErrorText(err); el.hidden = false; }
+      });
+    });
+  }
+
+  // Two-tap confirm, since the viewer has no confirm() dialog.
+  function confirmInline(btn, prompt, action) {
+    if (btn.dataset.armed) {
+      btn.disabled = true; btn.textContent = "Guardando…";
+      action().finally(() => { btn.disabled = false; });
+      return;
+    }
+    const original = btn.textContent;
+    btn.dataset.armed = "1"; btn.textContent = prompt;
+    setTimeout(() => { if (btn.isConnected && !btn.disabled) { delete btn.dataset.armed; btn.textContent = original; } }, 4000);
+  }
+
+  function openSettings() {
+    openModal(`
+      <h2>Ajustes</h2>
+      <p class="lede">Se guardan solo en este navegador.</p>
+      <form id="setForm" novalidate>
+        <div class="card-rules">
+          <span class="head">Tarjeta</span><span class="head">Día de corte</span><span class="head">Día de pago</span>
+          ${CARD_FAMILIES.map((f) => `<span class="who"><span class="dot ${f.id}"></span>${esc(f.name)}</span>
+            <input id="cut-${f.id}" type="number" min="1" max="31" inputmode="numeric" value="${settings.cards[f.id].cutoff}" aria-label="Día de corte ${esc(f.name)}">
+            <input id="pay-${f.id}" type="number" min="1" max="31" inputmode="numeric" value="${settings.cards[f.id].pay}" aria-label="Día de pago ${esc(f.name)}">`).join("")}
+        </div>
+        <div class="field"><label for="setSheet">ID de la hoja de Google</label><input id="setSheet" class="num" value="${esc(settings.sheetId)}"></div>
+        <div class="actions"><button class="btn secondary" type="button" id="setCancel">Cancelar</button><button class="btn" type="submit">Guardar</button></div>
+      </form>`, (host) => {
+      host.querySelector("#setCancel").onclick = closeModal;
+      host.querySelector("#setForm").onsubmit = (e) => {
+        e.preventDefault();
+        const clampDay = (v, d) => Math.min(31, Math.max(1, parseInt(v, 10) || d));
+        for (const f of CARD_FAMILIES) {
+          settings.cards[f.id] = {
+            cutoff: clampDay(host.querySelector("#cut-" + f.id).value, f.defaults.cutoff),
+            pay: clampDay(host.querySelector("#pay-" + f.id).value, f.defaults.pay),
+          };
+        }
+        store.set("cards", settings.cards);
+        const sheet = host.querySelector("#setSheet").value.trim() || DEFAULT_SHEET_ID;
+        const sheetChanged = sheet !== settings.sheetId;
+        settings.sheetId = sheet;
+        store.set("sheetId", sheet);
+        closeModal();
+        if (sheetChanged && state.mcp) { state.txns = null; state.payments = null; render(); watchSheets(); }
+        else render();
+      };
+    });
+  }
+
+  // ---------- Events ----------
+  document.addEventListener("click", (e) => {
+    const accept = e.target.closest("[data-accept]");
+    if (accept && !accept.disabled) { acceptBankAmount(accept); return; }
+    const untag = e.target.closest("[data-untag]");
+    if (untag) { openUntag(untag); return; }
+    const retag = e.target.closest("[data-retag]");
+    if (retag && state.recon) { state.recon.untagged.delete(retag.dataset.retag); render(); return; }
+    if (e.target.closest("[data-conclude]") && state.recon && state.recon.report) { openConclude(); return; }
+    const el = e.target.closest("[data-tab],[data-period],[data-brand],[data-toggle],[data-selectall],[data-open],[data-payment],[data-action]");
+    if (!el || el.closest("#modal")) return;
+    if (el.dataset.tab) {
+      state.tab = el.dataset.tab; store.set("tab", state.tab);
+      try { history.replaceState(null, "", "#" + state.tab); } catch { /* ignore */ }
+      render(); window.scrollTo({ top: 0 });
+    } else if (el.dataset.period) {
+      state.period = el.dataset.period; store.set("period2", state.period); render();
+    } else if (el.dataset.brand) {
+      state.brand = state.brand === el.dataset.brand ? "" : el.dataset.brand; render();
+    } else if (el.dataset.toggle) {
+      const h = el.dataset.toggle;
+      state.collapsed.has(h) ? state.collapsed.delete(h) : state.collapsed.add(h);
+      store.set("collapsed", [...state.collapsed]); render();
+    } else if (el.dataset.selectall) {
+      const items = state.txns.filter((t) => t.holder === el.dataset.selectall && !t.paymentId && inPeriod(t) && matchesQuery(t));
+      const allSel = items.every((t) => state.selected.has(t.ref));
+      items.forEach((t) => (allSel ? state.selected.delete(t.ref) : state.selected.add(t.ref)));
+      render();
+    } else if (el.dataset.open) {
+      openTxn(el.dataset.open);
+    } else if (el.dataset.payment) {
+      openPayment(el.dataset.payment);
+    } else if (el.dataset.action === "allow") {
+      allowAccess();
+    } else if (el.dataset.action === "refresh") {
+      refresh();
+    } else if (el.dataset.action === "settings") {
+      openSettings();
+    }
+  });
+  document.addEventListener("change", (e) => {
+    if (e.target.matches("[data-pick]")) {
+      const ref = e.target.dataset.pick;
+      e.target.checked ? state.selected.add(ref) : state.selected.delete(ref);
+      render();
+    } else if (e.target.id === "holderFilter") { state.holder = e.target.value; render(); }
+    else if (e.target.id === "statusFilter") { state.status = e.target.value; render(); }
+    else if (e.target.id === "brandFilter") { state.brand = e.target.value; render(); }
+    else if (e.target.id === "reconFile" && e.target.files[0]) { loadStatement(e.target.files[0]); }
+    else if (e.target.dataset.reconCol && state.recon) {
+      state.recon.map = { ...state.recon.map, [e.target.dataset.reconCol]: e.target.value };
+      store.set("reconMap", state.recon.map); render();
+    }
+    else if (e.target.id === "reconFamily" && state.recon) { state.recon.family = e.target.value; render(); }
+  });
+  let qTimer;
+  $("#q").addEventListener("input", (e) => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.query = e.target.value; render(); }, 120); });
+  $("#refresh").addEventListener("click", refresh);
+  $("#selClear").addEventListener("click", () => { state.selected.clear(); render(); });
+  $("#selPay").addEventListener("click", openPay);
+
+  // Settings link at the bottom of the main column.
+  const settingsBtn = document.createElement("button");
+  settingsBtn.className = "settings-link"; settingsBtn.type = "button"; settingsBtn.dataset.action = "settings";
+  settingsBtn.textContent = "Ajustes: días de corte y pago, hoja";
+  $("#app").appendChild(settingsBtn);
+
+  setInterval(renderChrome, 30000);
+
+  // ---------- Boot ----------
+  render();
+  const use = window.claude && window.claude.use ? window.claude.use("mcp") : Promise.resolve(null);
+  use.then((mcp) => {
+    state.mcp = mcp;
+    if (mcp) watchSheets();
+    render();
+  }).catch(() => { state.mcp = null; render(); });
+})();
+</script>

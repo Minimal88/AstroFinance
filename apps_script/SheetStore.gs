@@ -135,11 +135,12 @@ function toTransactionRow_(parsed, message) {
     parsed.lastDigits,
     parsed.cardholderName,
     parsed.authorization,
-    '', // Category  - filled in from AppSheet
-    '', // PaymentID - filled in from AppSheet or FastAPI
+    '', // Category  - set in the phone app
+    '', // PaymentID - set in the phone app ("Marcar pagado")
     message.getId(),
     permalinkFor_(message),
     nowIso_(),
+    '', // Tag       - set in the phone app when a reconciliation is concluded
   ];
 }
 
@@ -159,7 +160,7 @@ function toErrorRow_(message, error) {
  * ignore or a transaction needing a human look, and nothing is silently wrong.
  *
  * The Reference goes in the message text because this tab has no Reference
- * column -- its header order is a contract with the Python client. That string
+ * column -- adding one would change its header order. That string
  * is what you paste into Ctrl+F on the Transactions tab to find the row.
  */
 function toWarningRow_(message, reference, warnings) {
