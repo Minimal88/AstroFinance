@@ -403,11 +403,11 @@ button.row:active { background: var(--surface-2); }
     </div>`;
   }
 
-  const MONTHS_LONG = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  // DD/MM/YYYY, whatever language the browser is in.
   function longDate(isoDate) {
-    if (!isoDate) return "Sin fecha";
-    const [y, m, d] = isoDate.split("-").map(Number);
-    return `${d} de ${MONTHS_LONG[m - 1]} de ${y}`;
+    if (!isoDate) return "dd/mm/aaaa";
+    const [y, m, d] = isoDate.split("-");
+    return `${d}/${m}/${y}`;
   }
   function dateBox(name, value) {
     return `<label class="datebox${value ? "" : " empty"}">
