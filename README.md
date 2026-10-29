@@ -37,7 +37,7 @@ Google Sheets. The spreadsheet ID can be changed in the app's settings.
 ## Phone app
 
 - **Menu**: the ☰ button in the header opens the sections (Pendientes,
-  Movimientos, Conciliar, Pagos), a link to the Presupuesto page, links to
+  Movimientos, Conciliar, Pagos, Presupuesto), links to
   Dereck's and Hannia's Amex pages and Dereck's motorcycle page (open one to
   publish fresh data to it), and Ajustes.
 - **Pendientes**: pending charges grouped by cardholder. A tile per card family
@@ -83,10 +83,11 @@ To change the app, edit the file and republish it to the same artifact.
 
 ## Presupuesto (monthly budget)
 
-[`app/presupuesto.html`](app/presupuesto.html) is the owner's monthly budget,
-based on the old "Presupuesto 2026" sheet. It reads and writes the
-`Presupuesto` tab of the same Sheet through the owner's Google Sheets
-connector (nobody else sees it, so there is no published copy):
+The Presupuesto section of the phone app (☰ → Presupuesto, or `#budget`) is
+the owner's monthly budget, based on the old "Presupuesto 2026" sheet. Its
+code is the second `<script>` in `app/astrofinance.html` and its styles are
+scoped under `#budgetRoot`. It reads and writes the `Presupuesto` tab of the
+same Sheet, starting the first time the section opens:
 
 | Tipo | Concepto | Monto | Moneda | Quincena | Grupo | Hasta | Notas | | TipoCambio | MetaSaldo |
 |---|---|---|---|---|---|---|---|---|---|---|
