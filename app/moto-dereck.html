@@ -132,7 +132,10 @@ button.row:active { background: var(--surface-2); }
 /* The native date input stays invisible on top; the visible text is always in Spanish. */
 .datebox { position: relative; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); color: var(--fg); font-weight: 600; min-width: 0; cursor: pointer; }
 .datebox.empty { color: var(--muted); font-weight: 500; }
-.datebox input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; cursor: pointer; }
+.datebox input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; margin: 0; cursor: pointer; }
+/* Stretch the browser's own calendar button over the whole box: inside the claude.ai
+   frame that click is the only reliable way to open the picker on desktop. */
+.datebox input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: auto; height: auto; margin: 0; padding: 0; cursor: pointer; }
 .sheet textarea { width: 100%; min-height: 64px; resize: vertical; }
 .sheet .actions { display: flex; gap: 10px; justify-content: flex-end; }
 .sheet .error { color: var(--danger); font-size: 0.85rem; margin: 0; }
@@ -569,11 +572,7 @@ button.row:active { background: var(--surface-2); }
     syncDateBox(date);
   });
   document.addEventListener("input", (e) => { if (e.target.matches('.datebox input')) syncDateBox(e.target); });
-  // Desktop browsers only open the calendar from its icon, which is hidden here.
-  document.addEventListener("click", (e) => {
-    const input = e.target.matches(".datebox input") ? e.target : null;
-    if (input && input.showPicker) { try { input.showPicker(); } catch { /* opens natively */ } }
-  });
+
   document.addEventListener("submit", (e) => { e.preventDefault(); save(e.target); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && state.editing && !state.saving) { state.editing = null; renderModal(); } });
 
