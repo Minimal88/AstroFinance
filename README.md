@@ -36,6 +36,9 @@ Google Sheets. The spreadsheet ID can be changed in the app's settings.
 
 ## Phone app
 
+- **Menu**: the ☰ button in the header opens the sections (Pendientes,
+  Movimientos, Conciliar, Pagos), links to Dereck's and Hannia's Amex pages
+  (open one to publish fresh data to it), and Ajustes.
 - **Pendientes**: pending charges grouped by cardholder. A tile per card family
   shows when its next payment is due, the statement total and what is still
   pending; tapping a tile filters to that card.

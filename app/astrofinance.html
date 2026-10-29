@@ -26,7 +26,7 @@
   --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   --radius: 14px;
-  --tabbar-h: 64px;
+  --tabbar-h: 0px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -222,16 +222,40 @@ button { cursor: pointer; }
 .selbar-inner .clear { background: none; border: 0; color: var(--bg); opacity: 0.75; font-weight: 600; padding: 8px; }
 
 /* Tab bar */
-.tabbar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 26;
-  background: var(--surface); border-top: 1px solid var(--line);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
+.menu-btn { position: relative; }
+.menu-btn .badge { position: absolute; top: -5px; right: -5px; background: var(--warn); color: var(--surface); font-size: 0.65rem; border-radius: 999px; padding: 1px 6px; font-family: var(--font-num); }
+
+/* Hamburger drawer: slides in from the left over a dimmed page. */
+.drawer-scrim {
+  position: fixed; inset: 0; z-index: 44; background: rgba(5, 8, 14, 0.5);
+  opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0s 0.2s;
 }
-.tabbar nav { max-width: 720px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); height: var(--tabbar-h); }
-.tab { background: none; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--muted); font-size: 0.74rem; font-weight: 600; position: relative; }
-.tab[aria-current="page"] { color: var(--accent); }
-.tab .badge { position: absolute; top: 8px; left: calc(50% + 6px); background: var(--warn); color: var(--surface); font-size: 0.65rem; border-radius: 999px; padding: 1px 6px; font-family: var(--font-num); }
+.drawer {
+  position: fixed; top: 0; bottom: 0; left: 0; z-index: 45; width: min(320px, 86vw);
+  display: flex; flex-direction: column; gap: 4px; overflow-y: auto;
+  background: var(--surface); border-right: 1px solid var(--line); box-shadow: var(--shadow);
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 12px calc(16px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+  transform: translateX(-102%); visibility: hidden; transition: transform 0.22s ease, visibility 0s 0.22s;
+}
+body.menu-open .drawer { transform: none; visibility: visible; transition: transform 0.22s ease; }
+body.menu-open .drawer-scrim { opacity: 1; visibility: visible; transition: opacity 0.2s; }
+@media (prefers-reduced-motion: reduce) { .drawer, .drawer-scrim, body.menu-open .drawer, body.menu-open .drawer-scrim { transition: none; } }
+.drawer-head { display: flex; align-items: center; gap: 10px; padding: 0 4px 8px; }
+.drawer-head h2 { flex: 1; margin: 0; font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; }
+.drawer-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; padding: 14px 10px 4px; }
+.drawer-item {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 46px; padding: 8px 10px;
+  border: 0; border-radius: 12px; background: none; color: var(--fg); text-align: left; text-decoration: none;
+  font-size: 0.95rem; font-weight: 600;
+}
+.drawer-item svg { flex: none; color: var(--muted); }
+.drawer-item .text { flex: 1; min-width: 0; }
+.drawer-item small { display: block; font-size: 0.76rem; font-weight: 500; color: var(--muted); }
+.drawer-item:hover { background: var(--surface-2); }
+.drawer-item[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+.drawer-item[aria-current="page"] svg { color: var(--accent); }
+.drawer-item .badge { background: var(--warn); color: var(--surface); font-size: 0.7rem; border-radius: 999px; padding: 1px 7px; font-family: var(--font-num); }
+.drawer hr { border: 0; border-top: 1px solid var(--line); margin: 8px 4px; }
 
 /* Sheets (modals) */
 .scrim { position: fixed; inset: 0; background: rgba(5, 8, 14, 0.5); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
@@ -301,12 +325,15 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
 .recon-row .actions .btn { padding: 7px 12px; font-size: 0.82rem; }
 .recon-row .note { font-size: 0.8rem; color: var(--muted); grid-column: 1 / -1; }
 
-.settings-link { display: block; margin: 24px auto 0; background: none; border: 0; color: var(--muted); font-size: 0.8rem; text-decoration: underline; }
 </style>
 
 <div class="app" id="app">
   <header class="top">
     <div class="gutter top-row">
+      <button class="icon-btn menu-btn" id="menuBtn" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="drawer" data-menu="open">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <span class="badge" id="menuBadge" hidden></span>
+      </button>
       <div class="brand">
         <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
           <path d="M20.5 4.5c3.6-1 6.2-.6 6.9.1.7.7 1.1 3.3.1 6.9-1 3.5-3.4 7-6.9 9.6l-.7 4.6-4.2 2.6-.7-4.9-4.3-4.3-4.9-.7 2.6-4.2 4.6-.7c2.6-3.5 6.1-5.9 9.5-7z" fill="var(--accent)"/>
@@ -343,26 +370,47 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
   </div>
 </div>
 
-<div class="tabbar">
-  <nav aria-label="Secciones">
-    <button class="tab" type="button" data-tab="pending">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-      Pendientes<span class="badge" id="pendingBadge" hidden></span>
+<div class="drawer-scrim" id="drawerScrim" data-menu="close"></div>
+<nav class="drawer" id="drawer" aria-label="Menú">
+  <div class="drawer-head">
+    <h2>AstroFinance</h2>
+    <button class="icon-btn" type="button" data-menu="close" aria-label="Cerrar menú">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
     </button>
-    <button class="tab" type="button" data-tab="all">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>
-      Movimientos
-    </button>
-    <button class="tab" type="button" data-tab="reconcile">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
-      Conciliar
-    </button>
-    <button class="tab" type="button" data-tab="payments">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
-      Pagos
-    </button>
-  </nav>
-</div>
+  </div>
+  <button class="drawer-item tab" type="button" data-tab="pending">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    <span class="text">Pendientes</span><span class="badge" id="pendingBadge" hidden></span>
+  </button>
+  <button class="drawer-item tab" type="button" data-tab="all">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>
+    <span class="text">Movimientos</span>
+  </button>
+  <button class="drawer-item tab" type="button" data-tab="reconcile">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+    <span class="text">Conciliar</span>
+  </button>
+  <button class="drawer-item tab" type="button" data-tab="payments">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+    <span class="text">Pagos</span>
+  </button>
+  <div class="drawer-label">Páginas de la familia</div>
+  <a class="drawer-item" data-menu="close" href="https://claude.ai/artifact/S8mTvFQ1AvvewFtxYiSHrT" target="_blank" rel="noopener">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M6 15h4"/></svg>
+    <span class="text">Amex de Dereck<small>Terminada en 6074 · ábrela para publicar</small></span>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>
+  </a>
+  <a class="drawer-item" data-menu="close" href="https://claude.ai/artifact/RQvcEELAHNUZ96vg5eTBmQ" target="_blank" rel="noopener">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M6 15h4"/></svg>
+    <span class="text">Amex de Hannia<small>Terminada en 7311 · ábrela para publicar</small></span>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>
+  </a>
+  <hr>
+  <button class="drawer-item" type="button" data-action="settings">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    <span class="text">Ajustes<small>Días de corte y pago, hoja</small></span>
+  </button>
+</nav>
 
 <div id="modal"></div>
 <div id="toastHost"></div>
@@ -805,12 +853,24 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
           return `${f.short}: ${fmtDate(st.start)} – ${fmtDate(st.end)}`;
         }).join(" · ");
     const sync = $("#sync");
-    if (state.txnError && state.txns) sync.textContent = "Sin conexión · mostrando lo último";
-    else if (state.updatedAt) sync.textContent = (state.revalidating ? "Actualizando… · " : "") + "Actualizado " + ago(state.updatedAt);
+    const section = TAB_NAMES[state.tab] + " · ";
+    if (state.txnError && state.txns) sync.textContent = section + "Sin conexión · mostrando lo último";
+    else if (state.updatedAt) sync.textContent = section + (state.revalidating ? "Actualizando… · " : "") + "Actualizado " + ago(state.updatedAt);
+    else sync.textContent = section + "Conectando con tu hoja…";
     const pendingCount = state.txns ? state.txns.filter((t) => !t.paymentId && inPeriod(t)).length : 0;
-    const badge = $("#pendingBadge");
-    badge.hidden = !pendingCount; badge.textContent = pendingCount;
+    for (const badge of [$("#pendingBadge"), $("#menuBadge")]) { badge.hidden = !pendingCount; badge.textContent = pendingCount; }
   }
+  const TAB_NAMES = { pending: "Pendientes", all: "Movimientos", reconcile: "Conciliar", payments: "Pagos" };
+
+  // ---------- Hamburger menu ----------
+  function setMenu(open) {
+    document.body.classList.toggle("menu-open", open);
+    $("#menuBtn").setAttribute("aria-expanded", String(open));
+    if (open) { const cur = document.querySelector('.drawer-item[aria-current="page"]'); (cur || $("#drawer .drawer-item")).focus(); }
+    else if (document.activeElement && document.activeElement.closest("#drawer")) $("#menuBtn").focus();
+  }
+  const menuOpen = () => document.body.classList.contains("menu-open");
+
   function ago(ts) {
     const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
     if (s < 60) return "ahora";
@@ -1448,7 +1508,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     if (onMount) onMount(host);
   }
   function closeModal() { $("#modal").innerHTML = ""; }
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (menuOpen()) setMenu(false); else closeModal(); } });
 
   function toast(text, isError) {
     const host = $("#toastHost");
@@ -1683,7 +1743,15 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     const retag = e.target.closest("[data-retag]");
     if (retag && state.recon) { state.recon.untagged.delete(retag.dataset.retag); render(); return; }
     if (e.target.closest("[data-conclude]") && state.recon && state.recon.report) { openConclude(); return; }
+    const menu = e.target.closest("[data-menu]");
+    if (menu) {
+      // Links in the menu open the other pages in a new tab; the menu just closes behind them.
+      if (menu.tagName !== "A") e.preventDefault();
+      setMenu(menu.dataset.menu === "open");
+      return;
+    }
     const el = e.target.closest("[data-tab],[data-period],[data-brand],[data-toggle],[data-selectall],[data-open],[data-payment],[data-action]");
+    if (el && el.closest("#drawer")) setMenu(false);
     if (!el || el.closest("#modal")) return;
     if (el.dataset.tab) {
       state.tab = el.dataset.tab; store.set("tab", state.tab);
@@ -1734,12 +1802,6 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
   $("#refresh").addEventListener("click", refresh);
   $("#selClear").addEventListener("click", () => { state.selected.clear(); render(); });
   $("#selPay").addEventListener("click", openPay);
-
-  // Settings link at the bottom of the main column.
-  const settingsBtn = document.createElement("button");
-  settingsBtn.className = "settings-link"; settingsBtn.type = "button"; settingsBtn.dataset.action = "settings";
-  settingsBtn.textContent = "Ajustes: días de corte y pago, hoja";
-  $("#app").appendChild(settingsBtn);
 
   setInterval(renderChrome, 30000);
 
