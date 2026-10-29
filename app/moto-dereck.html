@@ -1,0 +1,594 @@
+<title>Moto de Dereck</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style id="css">
+/* Layout: one phone-width column. Header, four summary tiles (what Dereck paid me,
+   what I paid the Mastercard, what is set aside, the next installment), filter chips,
+   then one row per installment. The owner can tap a row to register payments. */
+:root {
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --surface-2: #f5f7fb;
+  --fg: #111826;
+  --muted: #5d6879;
+  --line: #dbe1ea;
+  --accent: #17824a;
+  --accent-soft: #dff3e8;
+  --on-accent: #ffffff;
+  --ok: #17824a;
+  --ok-soft: #dff3e8;
+  --warn: #b5470f;
+  --warn-soft: #fbe9df;
+  --danger: #c2262e;
+  --danger-soft: #fbe3e4;
+  --scrim: rgba(10, 14, 22, 0.45);
+  --font-display: "Bricolage Grotesque", "Figtree", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117; --surface: #161c25; --surface-2: #1c2430; --fg: #e6ecf4; --muted: #8b97a9;
+    --line: #283140; --accent: #4fc68c; --accent-soft: #133524; --on-accent: #06121f;
+    --ok: #4fc68c; --ok-soft: #133524; --warn: #ff9a66; --warn-soft: #3a2116; --danger: #ff6b72; --danger-soft: #3a1619;
+    --scrim: rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1117; --surface: #161c25; --surface-2: #1c2430; --fg: #e6ecf4; --muted: #8b97a9;
+  --line: #283140; --accent: #4fc68c; --accent-soft: #133524; --on-accent: #06121f;
+  --ok: #4fc68c; --ok-soft: #133524; --warn: #ff9a66; --warn-soft: #3a2116; --danger: #ff6b72; --danger-soft: #3a1619;
+  --scrim: rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.4;
+  -webkit-tap-highlight-color: transparent;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 30; background: var(--surface);
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+.app { max-width: 720px; margin: 0 auto; padding-bottom: 32px; }
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border-bottom: 1px solid var(--line); }
+.top-row { display: flex; align-items: center; gap: 12px; padding-block: 14px 10px; }
+.badge { flex: none; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.who { flex: 1; min-width: 0; }
+.who h1 { margin: 0; font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
+.who .sub { font-size: 0.78rem; color: var(--muted); }
+.chips { display: flex; gap: 6px; padding: 2px; margin-inline: -2px; margin-bottom: 10px; overflow-x: auto; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; border: 1px solid var(--line); background: var(--surface); color: var(--muted); padding: 6px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+.summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-block: 16px 4px; }
+@media (max-width: 380px) { .summary { grid-template-columns: minmax(0, 1fr); } }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.tile .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
+.tile .big { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; line-height: 1.15; }
+.tile .big.soon { color: var(--warn); }
+.tile .big.late { color: var(--danger); }
+.tile .value { font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
+.tile .sub { font-size: 0.76rem; color: var(--muted); }
+.tile .sub .soon { color: var(--warn); font-weight: 700; }
+.tile .sub .late { color: var(--danger); font-weight: 700; }
+.counter { display: flex; align-items: center; gap: 12px; }
+.counter .big { font-size: 1.6rem; min-width: 1.2em; text-align: center; }
+.step { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: 1.15rem; font-weight: 700; line-height: 1; }
+.step[disabled] { opacity: 0.45; cursor: default; }
+.tile .ahead { font-size: 0.8rem; font-weight: 700; color: var(--ok); background: var(--ok-soft); border-radius: 8px; padding: 4px 8px; align-self: flex-start; }
+.tile .sub.late { color: var(--danger); font-weight: 600; }
+.bar { height: 6px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; margin-top: 2px; }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+
+.list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin-top: 14px; overflow: hidden; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px 14px; border-top: 1px solid var(--line); width: 100%; text-align: left; background: none; border-left: 0; border-right: 0; border-bottom: 0; }
+.row:first-child { border-top: 0; }
+button.row:active { background: var(--surface-2); }
+.row .title { font-weight: 700; font-size: 0.92rem; }
+.row .title small { font-weight: 500; color: var(--muted); }
+.row .amount { font-size: 0.95rem; font-weight: 600; text-align: right; }
+.row .pills { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.row .note { grid-column: 1 / -1; font-size: 0.78rem; color: var(--muted); overflow-wrap: anywhere; }
+.pill { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.01em; white-space: nowrap; }
+.pill.pending { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+.pill.soon { background: var(--warn-soft); color: var(--warn); }
+.pill.late { background: var(--danger-soft); color: var(--danger); }
+.pill.paid { background: var(--ok-soft); color: var(--ok); }
+
+.empty, .notice { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); padding: 22px 18px; margin-top: 16px; text-align: center; color: var(--muted); }
+.notice { border-style: solid; text-align: left; color: var(--fg); display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.notice h3 { margin: 0; font-size: 1rem; }
+.notice p { margin: 0; color: var(--muted); }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; border-radius: 12px; border: 1px solid transparent; font-weight: 700; background: var(--accent); color: var(--on-accent); }
+.btn.secondary { background: var(--surface-2); color: var(--fg); border-color: var(--line); }
+.btn[disabled] { opacity: 0.55; cursor: progress; }
+.foot { font-size: 0.76rem; color: var(--muted); margin-top: 18px; text-align: center; }
+
+/* Edit sheet (owner only) */
+.scrim { position: fixed; inset: 0; z-index: 40; background: var(--scrim); display: flex; align-items: flex-end; justify-content: center; }
+.sheet { width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; background: var(--surface); border-radius: 18px 18px 0 0; padding: 18px max(16px, env(safe-area-inset-left, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 14px; }
+@media (min-width: 600px) { .scrim { align-items: center; } .sheet { border-radius: 18px; } }
+.sheet h2 { margin: 0; font-family: var(--font-display); font-size: 1.2rem; }
+.sheet .sub { color: var(--muted); font-size: 0.85rem; margin-top: -10px; }
+.field { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; background: var(--surface-2); }
+.field label.toggle { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.field input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
+.field .date { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--muted); }
+.sheet textarea { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); min-width: 0; }
+/* The native date input stays invisible on top; the visible text is always in Spanish. */
+.datebox { position: relative; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); color: var(--fg); font-weight: 600; min-width: 0; cursor: pointer; }
+.datebox.empty { color: var(--muted); font-weight: 500; }
+.datebox input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; margin: 0; cursor: pointer; }
+/* Stretch the browser's own calendar button over the whole box: inside the claude.ai
+   frame that click is the only reliable way to open the picker on desktop. */
+.datebox input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: auto; height: auto; margin: 0; padding: 0; cursor: pointer; }
+.sheet textarea { width: 100%; min-height: 64px; resize: vertical; }
+.sheet .actions { display: flex; gap: 10px; justify-content: flex-end; }
+.sheet .error { color: var(--danger); font-size: 0.85rem; margin: 0; }
+</style>
+<div id="app" class="app"></div>
+<div id="modal"></div>
+<script type="application/json" id="snapshot">null</script>
+<script id="code">
+(() => {
+  "use strict";
+
+  const VIEWER = "Dereck";
+  const SERVER = "Google Sheets";
+  const SHEET_ID = "1jLcS4xf7jNM6OE2nGU5aHX3JThDyL4ud5gVqhvZ13ss";
+  const TAB = "MotoDereck";
+  const RANGE = TAB + "!A:J";
+  // Advance installments Dereck has paid that sit in the Wink account: a counter set by hand in J2.
+  const ADV_HEADER = "CuotasAdelantadas", ADV_CELL = TAB + "!J2";
+  // Mastercard payment day (same as the main app).
+  const PAY = 5;
+  // The exact wrapper the Artifact tool puts around this file. The page republishes itself in this shape.
+  const SKELETON_OPEN = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>\n';
+  const SKELETON_CLOSE = "\n</body></html>";
+
+  const snapshot = readSnapshot();
+  const FILTERS = [["all", "Todas"], ["dereck", "Dereck debe"], ["card", "Tarjeta pendiente"], ["done", "Completas"]];
+  const savedFilter = (() => { try { return localStorage.getItem("moto:filter"); } catch { return null; } })();
+  const state = {
+    filter: FILTERS.some(([id]) => id === savedFilter) ? savedFilter : "all",
+    live: null, liveAdv: 0, advSaving: false, advError: "", mcp: undefined, liveError: null,
+    canPublish: true, publishing: false, publishError: "",
+    editing: null, saving: false, saveError: "",
+  };
+
+  // ---------- Helpers ----------
+  const $ = (sel) => document.querySelector(sel);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function readSnapshot() {
+    try { const s = JSON.parse(document.getElementById("snapshot").textContent); return s && Array.isArray(s.cuotas) ? s : null; }
+    catch { return null; }
+  }
+  function parseAmount(raw) {
+    if (typeof raw === "number") return raw;
+    const t = String(raw ?? "").replace(/[^\d.,-]/g, "").replace(/,/g, "");
+    const n = parseFloat(t);
+    return isNaN(n) ? 0 : n;
+  }
+  // The tab stores yyyy-mm-dd. Dates typed by hand in the sheet are read as d/m/yyyy.
+  function parseDate(raw) {
+    const t = String(raw ?? "").trim();
+    let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return iso(+m[1], +m[2], +m[3]);
+    m = t.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+    if (m) return iso(+m[3], +m[2], +m[1]);
+    return "";
+  }
+  const yes = (v) => /^(s[ií]|si|yes|true|x)$/i.test(String(v ?? "").trim());
+  function iso(y, mo, d) { return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`; }
+  function todayIso() { const d = new Date(); return iso(d.getFullYear(), d.getMonth() + 1, d.getDate()); }
+  const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  function fmtDate(isoDate, withYear) {
+    if (!isoDate) return "—";
+    const [y, m, d] = isoDate.split("-").map(Number);
+    return `${d} ${MONTHS[m - 1]}${withYear ? " " + y : ""}`;
+  }
+  function fmtStamp(ms) {
+    const d = new Date(ms);
+    if (isNaN(d)) return "";
+    return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+  }
+  function money(n) { return "₡" + Math.round(n).toLocaleString("en-US"); }
+  function daysUntil(isoDate) {
+    const [y, m, d] = isoDate.split("-").map(Number);
+    const [ty, tm, td] = todayIso().split("-").map(Number);
+    return Math.round((new Date(y, m - 1, d) - new Date(ty, tm - 1, td)) / 86400000);
+  }
+  function whenText(isoDate) {
+    const n = daysUntil(isoDate);
+    if (n === 0) return "hoy";
+    if (n === 1) return "mañana";
+    if (n > 1) return `en ${n} días`;
+    return n === -1 ? "ayer" : `hace ${-n} días`;
+  }
+  // The Mastercard payment for an installment: the 5th of the month after its date
+  // (the sheet's history shows each one paid in the first half of the next month).
+  function cardDue(date) {
+    if (!date) return "";
+    let [y, m] = date.split("-").map(Number);
+    m += 1; if (m > 12) { m = 1; y += 1; }
+    return iso(y, m, PAY);
+  }
+
+  // ---------- Sheet → installments ----------
+  function valuesOf(result) {
+    const p = result && (result.payload ?? result);
+    if (p && Array.isArray(p.values)) return p.values;
+    if (p && typeof p === "object" && !Array.isArray(p)) return [];
+    throw new Error("Respuesta inesperada de Google Sheets.");
+  }
+  function buildCuotas(values) {
+    if (!values.length) return [];
+    const header = values[0].map((h) => String(h).trim());
+    const col = (n) => header.indexOf(n);
+    const idx = { n: col("Cuota"), date: col("FechaCobro"), amount: col("Monto"), dp: col("DereckPagado"), dd: col("DereckFecha"), cp: col("TarjetaPagada"), cd: col("TarjetaFecha"), notes: col("Notas") };
+    if (Object.values(idx).some((i) => i < 0)) throw new Error(`La pestaña ${TAB} no tiene las columnas esperadas.`);
+    const out = [];
+    values.slice(1).forEach((r, i) => {
+      const n = parseInt(String(r[idx.n] ?? "").trim(), 10);
+      if (!n) return;
+      out.push({
+        row: i + 2, n,
+        date: parseDate(r[idx.date]),
+        amount: parseAmount(r[idx.amount]),
+        dereck: yes(r[idx.dp]), dereckDate: parseDate(r[idx.dd]),
+        card: yes(r[idx.cp]), cardDate: parseDate(r[idx.cd]),
+        notes: String(r[idx.notes] ?? "").trim(),
+      });
+    });
+    out.sort((a, b) => a.n - b.n);
+    return out;
+  }
+  function readAdvance(values) {
+    const i = values.length ? values[0].map((h) => String(h).trim()).indexOf(ADV_HEADER) : -1;
+    if (i < 0) return 0;
+    const n = parseInt(String((values[1] && values[1][i]) ?? "").trim(), 10);
+    return n > 0 ? n : 0;
+  }
+  const CONSENT = ["approval_required", "not_in_manifest", "consent_required"];
+  // Row numbers are only for writing; they never go into what Dereck sees.
+  const publicView = (list) => list.map(({ row, ...c }) => c);
+  const sameCuotas = (a, b) => JSON.stringify(publicView(a)) === JSON.stringify(publicView(b));
+  function currentAdvance() { return state.live ? state.liveAdv : (snapshot && snapshot.adelantadas) || 0; }
+
+  // ---------- Rendering ----------
+  function current() { return state.live ?? (snapshot ? snapshot.cuotas : null); }
+  const isOwner = () => !!state.live;
+
+  function render() {
+    const cuotas = current();
+    const updated = state.live ? "En vivo desde la hoja" : snapshot ? `Actualizado el ${fmtStamp(snapshot.updatedAt)}` : "";
+    const total = cuotas ? cuotas.length : 0;
+    const per = cuotas && cuotas.length ? cuotas[0].amount : 0;
+    let html = `
+      <header class="top"><div class="gutter">
+        <div class="top-row">
+          <div class="badge" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5 9 9h5l3 7.5"/><path d="M14 9l1.5-3H18"/><path d="M9 9 7.5 6H5"/></svg>
+          </div>
+          <div class="who"><h1>Moto de ${esc(VIEWER)}</h1><div class="sub">${total ? `${total} cuotas de <span class="num">${esc(money(per))}</span> · Mastercard` : "Mastercard"}${updated ? " · " + esc(updated) : ""}</div></div>
+        </div>
+        <div class="chips" role="group" aria-label="Filtrar cuotas">
+          ${FILTERS.map(([id, label]) => `<button class="chip" type="button" data-filter="${id}" aria-pressed="${state.filter === id}">${label}</button>`).join("")}
+        </div>
+      </div></header>
+      <main class="gutter">`;
+    html += publishNotice();
+    if (!cuotas) {
+      html += `<div class="empty">${state.liveError && !CONSENT.includes(state.liveError.code) ? esc(state.liveError.message || "No se pudo leer la hoja.") : "Todavía no hay cuotas publicadas."}</div>`;
+    } else {
+      html += summary(cuotas) + list(cuotas);
+    }
+    html += `<p class="foot">${isOwner() ? "Toca una cuota para registrar un pago." : "Solo lectura. Los pagos los registra Esteban."}</p>`;
+    if (state.liveError && CONSENT.includes(state.liveError.code)) {
+      html += `<p class="foot"><button class="btn secondary" type="button" data-action="connect">Conectar con la hoja (administrador)</button></p>`;
+    }
+    html += `</main>`;
+    $("#app").innerHTML = html;
+    // A background refresh must not wipe what is being typed in the open sheet.
+    if (!state.editing || !$("#modal [data-sheet]")) renderModal();
+  }
+
+  function summary(cuotas) {
+    const sum = (list) => list.reduce((s, c) => s + c.amount, 0);
+    const all = sum(cuotas);
+    const fromDereck = cuotas.filter((c) => c.dereck), toCard = cuotas.filter((c) => c.card);
+    const pct = (part) => (all ? Math.round((sum(part) / all) * 100) : 0);
+    const adv = currentAdvance();
+    const lastDereck = fromDereck.map((c) => c.dereckDate).filter(Boolean).sort().pop();
+    const lastCard = toCard.map((c) => c.cardDate).filter(Boolean).sort().pop();
+    const nextD = cuotas.find((c) => !c.dereck);
+    const dCls = nextD && nextD.date ? (daysUntil(nextD.date) < 0 ? "late" : daysUntil(nextD.date) <= 7 ? "soon" : "") : "";
+    return `<section class="summary">
+      <div class="tile">
+        <span class="label">${esc(VIEWER)} ha pagado</span>
+        <span class="big">${fromDereck.length} de ${cuotas.length} cuotas</span>
+        <span class="value num">${esc(money(sum(fromDereck)))}</span>
+        <div class="bar" aria-hidden="true"><i style="width:${pct(fromDereck)}%"></i></div>
+        <span class="sub">Faltan ${esc(money(all - sum(fromDereck)))}${lastDereck ? " · último " + esc(fmtDate(lastDereck, true)) : ""}</span>
+      </div>
+      <div class="tile">
+        <span class="label">Pagado a la Mastercard</span>
+        <span class="big">${toCard.length} de ${cuotas.length} cuotas</span>
+        <span class="value num">${esc(money(sum(toCard)))}</span>
+        <div class="bar" aria-hidden="true"><i style="width:${pct(toCard)}%"></i></div>
+        <span class="sub">Faltan ${esc(money(all - sum(toCard)))}${lastCard ? " · último " + esc(fmtDate(lastCard, true)) : ""}</span>
+      </div>
+      <div class="tile">
+        <span class="label">Próxima de ${esc(VIEWER)}</span>
+        ${nextD ? `<span class="big ${dCls}">Cuota ${nextD.n} · ${esc(fmtDate(nextD.date))}</span>
+        <span class="sub">${esc(money(nextD.amount))} · se cobra ${esc(whenText(nextD.date))}</span>` : `<span class="big">Todo pagado</span>`}
+      </div>
+      <div class="tile">
+        <span class="label">Cuotas adelantadas</span>
+        <div class="counter">
+          ${isOwner() ? `<button class="step" type="button" data-adv="-1" aria-label="Una cuota adelantada menos" ${adv <= 0 || state.advSaving ? "disabled" : ""}>−</button>` : ""}
+          <span class="big num">${adv}</span>
+          ${isOwner() ? `<button class="step" type="button" data-adv="1" aria-label="Una cuota adelantada más" ${state.advSaving ? "disabled" : ""}>+</button>` : ""}
+        </div>
+        <span class="sub">Guardadas en Wink${adv && cuotas.length ? " · " + esc(money(adv * cuotas[0].amount)) : ""}</span>
+        ${state.advError ? `<span class="sub late">${esc(state.advError)}</span>` : ""}
+        ${aheadLine(cuotas, adv)}
+      </div>
+    </section>`;
+  }
+
+  // The advance installments pay off the last ones, so the loan ends that many months early.
+  function aheadLine(cuotas, adv) {
+    if (!adv) return `<span class="sub">Sin cuotas adelantadas por ahora</span>`;
+    let paid = 0;
+    while (paid < cuotas.length && cuotas[paid].dereck) paid++;
+    const last = cuotas.length - adv; // the last installment Dereck still has to pay
+    if (last <= paid) return `<span class="ahead">¡Con esto la moto queda pagada!</span>`;
+    const c = cuotas[last - 1];
+    const left = last - paid;
+    return `<span class="ahead">Cubierto hasta la cuota ${c.n} · ${esc(fmtDate(c.date, true))}</span>
+        <span class="sub">Solo faltan ${left} cuota${left === 1 ? "" : "s"} para terminar</span>`;
+  }
+
+  function dereckPill(c) {
+    if (c.dereck) return `<span class="pill paid">${esc(VIEWER)} pagó${c.dereckDate ? " · " + esc(fmtDate(c.dereckDate, true)) : ""}</span>`;
+    const n = c.date ? daysUntil(c.date) : 99;
+    return `<span class="pill ${n < 0 ? "late" : n <= 7 ? "soon" : "pending"}">${esc(VIEWER)}: ${n < 0 ? "atrasada" : "pendiente"}</span>`;
+  }
+  function cardPill(c) {
+    if (c.card) return `<span class="pill paid">Tarjeta pagada${c.cardDate ? " · " + esc(fmtDate(c.cardDate, true)) : ""}</span>`;
+    const due = cardDue(c.date);
+    const n = due ? daysUntil(due) : 99;
+    return `<span class="pill ${n < 0 ? "late" : n <= 7 ? "soon" : "pending"}">Tarjeta: vence ${esc(fmtDate(due, true))}</span>`;
+  }
+
+  function list(cuotas) {
+    const shown = cuotas.filter((c) =>
+      state.filter === "all" ? true :
+      state.filter === "dereck" ? !c.dereck :
+      state.filter === "card" ? !c.card :
+      c.dereck && c.card);
+    if (!shown.length) return `<div class="empty">No hay cuotas aquí.</div>`;
+    const tag = isOwner() ? "button" : "div";
+    return `<section class="list">${shown.map((c) => `
+      <${tag} class="row" ${isOwner() ? `type="button" data-edit="${c.n}"` : ""}>
+        <div class="title">Cuota ${c.n} <small>· se cobra ${esc(fmtDate(c.date, true))}</small></div>
+        <div class="amount num">${esc(money(c.amount))}</div>
+        <div class="pills">${dereckPill(c)}${cardPill(c)}</div>
+        ${c.notes ? `<div class="note">${esc(c.notes)}</div>` : ""}
+      </${tag}>`).join("")}</section>`;
+  }
+
+  // Shown only to someone whose own Google Sheets connector can read the sheet (Esteban).
+  function publishNotice() {
+    if (!state.live || !state.canPublish) {
+      if (state.publishError) return `<div class="notice"><p>${esc(state.publishError)}</p></div>`;
+      return "";
+    }
+    if (snapshot && sameCuotas(state.live, snapshot.cuotas) && state.liveAdv === (snapshot.adelantadas || 0)) return "";
+    return `<div class="notice">
+      <h3>${snapshot ? "Hay cambios que " + esc(VIEWER) + " aún no ve" : "Esta página está vacía para " + esc(VIEWER)}</h3>
+      <p>Lo que ves sale de tu hoja. ${esc(VIEWER)} solo ve la última versión publicada, sin acceso a la hoja.</p>
+      <button class="btn" type="button" data-action="publish" ${state.publishing ? "disabled" : ""}>${state.publishing ? "Publicando…" : "Publicar para " + esc(VIEWER)}</button>
+      ${state.publishError ? `<p>${esc(state.publishError)}</p>` : ""}
+    </div>`;
+  }
+
+  // ---------- Edit sheet (owner) ----------
+  function renderModal() {
+    const host = $("#modal");
+    const c = state.editing && state.live && state.live.find((x) => x.n === state.editing);
+    if (!c) { host.innerHTML = ""; return; }
+    host.innerHTML = `<div class="scrim" data-action="close">
+      <form class="sheet" data-sheet="${c.n}" role="dialog" aria-modal="true" aria-label="Cuota ${c.n}">
+        <h2>Cuota ${c.n} · ${esc(money(c.amount))}</h2>
+        <div class="sub">Se cobra el ${esc(fmtDate(c.date, true))} · la tarjeta vence el ${esc(fmtDate(cardDue(c.date), true))}</div>
+        <div class="field">
+          <label class="toggle"><input type="checkbox" name="dereck" ${c.dereck ? "checked" : ""}> ${esc(VIEWER)} me pagó</label>
+          <div class="date">Fecha ${dateBox("dereckDate", c.dereckDate)}</div>
+        </div>
+        <div class="field">
+          <label class="toggle"><input type="checkbox" name="card" ${c.card ? "checked" : ""}> Pagué la Mastercard</label>
+          <div class="date">Fecha ${dateBox("cardDate", c.cardDate)}</div>
+        </div>
+        <textarea name="notes" placeholder="Notas (se ven en la página de ${esc(VIEWER)})">${esc(c.notes)}</textarea>
+        ${state.saveError ? `<p class="error">${esc(state.saveError)}</p>` : ""}
+        <div class="actions">
+          <button class="btn secondary" type="button" data-action="close">Cancelar</button>
+          <button class="btn" type="submit" ${state.saving ? "disabled" : ""}>${state.saving ? "Guardando…" : "Guardar"}</button>
+        </div>
+      </form>
+    </div>`;
+  }
+
+  // DD/MM/YYYY, whatever language the browser is in.
+  function longDate(isoDate) {
+    if (!isoDate) return "dd/mm/aaaa";
+    const [y, m, d] = isoDate.split("-");
+    return `${d}/${m}/${y}`;
+  }
+  function dateBox(name, value) {
+    return `<label class="datebox${value ? "" : " empty"}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+      <span>${esc(longDate(value))}</span>
+      <input type="date" name="${name}" value="${esc(value)}" lang="es" aria-label="Fecha">
+    </label>`;
+  }
+  function syncDateBox(input) {
+    const box = input.closest(".datebox");
+    if (!box) return;
+    box.querySelector("span").textContent = longDate(input.value);
+    box.classList.toggle("empty", !input.value);
+  }
+
+  async function stepAdvance(delta) {
+    if (!state.live || state.advSaving) return;
+    const next = Math.max(0, state.liveAdv + delta);
+    state.advSaving = true; state.advError = ""; render();
+    try {
+      await state.mcp.callTool(SERVER, "update_values", { spreadsheetId: SHEET_ID, range: ADV_CELL, values: [[next]] }, { cache: false });
+      state.liveAdv = next;
+      try { await state.mcp.invalidate(SERVER, "get_values"); } catch { /* the 3-minute refresh picks it up */ }
+    } catch (e) {
+      state.advError = "No se pudo guardar el contador.";
+    }
+    state.advSaving = false; render();
+  }
+
+  async function save(form) {
+    const c = state.live && state.live.find((x) => x.n === state.editing);
+    if (!c || state.saving) return;
+    const f = new FormData(form);
+    const dereck = f.get("dereck") === "on", card = f.get("card") === "on";
+    // Ticking a box with no date fills in today.
+    const dereckDate = dereck ? (f.get("dereckDate") || todayIso()) : "";
+    const cardDate = card ? (f.get("cardDate") || todayIso()) : "";
+    const notes = String(f.get("notes") || "").trim();
+    state.saving = true; state.saveError = ""; renderModal();
+    try {
+      // Re-read the row first so a sorted or edited sheet is noticed instead of overwritten.
+      const check = valuesOf(await state.mcp.callTool(SERVER, "get_values", { spreadsheetId: SHEET_ID, range: `${TAB}!A${c.row}:A${c.row}` }, { cache: false }));
+      if (parseInt(String((check[0] && check[0][0]) ?? ""), 10) !== c.n) throw new Error("La hoja cambió. Cierra, espera que se actualice e intenta de nuevo.");
+      await state.mcp.callTool(SERVER, "update_values", {
+        spreadsheetId: SHEET_ID,
+        range: `${TAB}!D${c.row}:H${c.row}`,
+        values: [[dereck ? "Sí" : "No", dereckDate, card ? "Sí" : "No", cardDate, notes]],
+      }, { cache: false });
+      Object.assign(c, { dereck, dereckDate, card, cardDate, notes });
+      state.saving = false; state.editing = null;
+      render();
+      try { await state.mcp.invalidate(SERVER, "get_values"); } catch { /* the 3-minute refresh picks it up */ }
+    } catch (e) {
+      state.saving = false;
+      state.saveError = (e && e.message) || "No se pudo guardar. Intenta de nuevo.";
+      renderModal();
+    }
+  }
+
+  // ---------- Live data and publishing ----------
+  let unwatch = null;
+  function watchSheet(mcp) {
+    if (unwatch) { try { unwatch(); } catch { /* already stopped */ } }
+    // Errors here usually mean this viewer has no access to the sheet: keep showing the published copy.
+    unwatch = mcp.watchTool(SERVER, "get_values", { spreadsheetId: SHEET_ID, range: RANGE }, (ev) => {
+      if (ev.type === "data") {
+        try { const values = valuesOf(ev.result); state.live = buildCuotas(values); state.liveAdv = readAdvance(values); state.liveError = null; }
+        catch (e) { state.liveError = e; }
+      } else { state.liveError = ev.error; state.live = null; }
+      if (!state.saving) render();
+    }, { cache: { staleTime: 0, gcTime: 7 * 24 * 3600 * 1000 }, refetchInterval: 180000 });
+  }
+
+  function documentFor(cuotas) {
+    const data = JSON.stringify({ updatedAt: Date.now(), cuotas: publicView(cuotas), adelantadas: state.liveAdv }).replace(/</g, "\\u003c");
+    const head = [...document.querySelectorAll('meta[name="claude:viewport-fit-sides"], link[rel="preconnect"], link[rel="stylesheet"]')]
+      .map((el) => el.outerHTML).join("\n");
+    return SKELETON_OPEN
+      + `<title>${esc(document.title)}</title>\n${head}\n`
+      + `<style id="css">${$("#css").textContent}</style>\n`
+      + `<div id="app" class="app"></div>\n<div id="modal"></div>\n`
+      + `<script type="application/json" id="snapshot">${data}<\/script>\n`
+      + `<script id="code">${$("#code").textContent}<\/script>\n`
+      + SKELETON_CLOSE;
+  }
+
+  async function publish() {
+    if (!state.live || state.publishing) return;
+    state.publishing = true; state.publishError = ""; render();
+    try {
+      const artifact = await window.claude.use("artifact");
+      if (!artifact) throw { code: "not_granted" };
+      await artifact.publish(documentFor(state.live));
+      // The view reloads to the new version on its own.
+    } catch (e) {
+      const code = e && e.code;
+      state.publishing = false;
+      if (code === "conflict") return;
+      if (code === "not_writer" || code === "not_granted" || code === "not_declared" || code === "capability_disabled" || code === "consent_required") {
+        state.canPublish = false;
+        state.publishError = "Esta vista es de solo lectura, así que no puede publicar cambios.";
+      } else if (code === "rate_limited") {
+        state.publishError = "Demasiadas publicaciones seguidas. Intenta en un minuto.";
+      } else {
+        state.publishError = "No se pudo publicar. Intenta de nuevo en unos segundos.";
+      }
+      render();
+    }
+  }
+
+  // Only callTool can ask for consent; the watch picks the data up afterwards.
+  async function connect() {
+    if (!state.mcp) return;
+    try {
+      await state.mcp.callTool(SERVER, "get_values", { spreadsheetId: SHEET_ID, range: `${TAB}!A1:A1` }, { cache: false });
+      state.liveError = null; watchSheet(state.mcp);
+    } catch (e) { state.liveError = e; render(); }
+  }
+
+  document.addEventListener("click", (e) => {
+    const f = e.target.closest("[data-filter]");
+    if (f) { state.filter = f.dataset.filter; try { localStorage.setItem("moto:filter", state.filter); } catch { /* storage unavailable */ } render(); return; }
+    const st = e.target.closest("[data-adv]");
+    if (st) { stepAdvance(+st.dataset.adv); return; }
+    const ed = e.target.closest("[data-edit]");
+    if (ed && isOwner()) { state.editing = +ed.dataset.edit; state.saveError = ""; renderModal(); return; }
+    const close = e.target.closest('[data-action="close"]');
+    if (close && (e.target === close || close.tagName === "BUTTON") && !state.saving) { state.editing = null; renderModal(); return; }
+    if (e.target.closest('[data-action="publish"]')) publish();
+    if (e.target.closest('[data-action="connect"]')) connect();
+  });
+  document.addEventListener("change", (e) => {
+    // Ticking a box fills today's date if none is set; unticking clears it.
+    const box = e.target.closest('.sheet input[type="checkbox"]');
+    if (!box) return;
+    const date = box.form.elements[box.name + "Date"];
+    if (box.checked && !date.value) date.value = todayIso();
+    if (!box.checked) date.value = "";
+    syncDateBox(date);
+  });
+  document.addEventListener("input", (e) => { if (e.target.matches('.datebox input')) syncDateBox(e.target); });
+
+  document.addEventListener("submit", (e) => { e.preventDefault(); save(e.target); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && state.editing && !state.saving) { state.editing = null; renderModal(); } });
+
+  render();
+  const use = window.claude && window.claude.use ? window.claude.use("mcp") : Promise.resolve(null);
+  use.then((mcp) => { state.mcp = mcp; if (mcp) watchSheet(mcp); }).catch(() => { state.mcp = null; });
+})();
+</script>
