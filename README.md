@@ -38,7 +38,8 @@ Google Sheets. The spreadsheet ID can be changed in the app's settings.
 
 - **Menu**: the ☰ button in the header opens the sections (Pendientes,
   Movimientos, Conciliar, Pagos), links to Dereck's and Hannia's Amex pages
-  (open one to publish fresh data to it), and Ajustes.
+  and Dereck's motorcycle page (open one to publish fresh data to it), and
+  Ajustes.
 - **Pendientes**: pending charges grouped by cardholder. A tile per card family
   shows when its next payment is due, the statement total and what is still
   pending; tapping a tile filters to that card.
@@ -101,6 +102,29 @@ payment and everything still pending. They have the main app's period chips
 - The two files are identical except for the `VIEWER` line and the title. The
   files in the repo carry no data (`snapshot` is `null`), so republishing one
   from the repo empties it until the owner taps "Publicar" again.
+
+## Dereck's motorcycle page
+
+[`app/moto-dereck.html`](app/moto-dereck.html) tracks the 24 Mastercard
+installments for Dereck's motorcycle: which ones Dereck has paid back, and
+which ones have been paid to the card. It reads the `MotoDereck` tab of the
+same Sheet (copied from the old "Pagos Moto de Dereck" workbook):
+
+| Cuota | FechaCobro | Monto | DereckPagado | DereckFecha | TarjetaPagada | TarjetaFecha | Notas |
+|---|---|---|---|---|---|---|---|
+
+- Dates are stored as `yyyy-mm-dd` text; dates typed by hand are read as
+  d/m/yyyy. `DereckPagado` and `TarjetaPagada` are `Sí` or `No`.
+- Tiles show what Dereck has paid, what has been paid to the Mastercard, the
+  difference (money set aside for the card, or what Dereck owes) and the next
+  installment. The card payment for an installment is due on the 5th of the
+  following month.
+- **Owner**: tapping an installment opens a form to tick "Dereck me pagó" and
+  "Pagué la Mastercard" with their dates and notes. It writes columns D:H of
+  that row, after checking the row still holds that installment.
+- **Dereck**: same publish model as the Amex pages. He sees the last copy
+  published with "Publicar para Dereck" and never the Sheet. The repo file has
+  no data (`snapshot` is `null`).
 
 ## Tests
 
