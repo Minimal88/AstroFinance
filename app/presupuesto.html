@@ -181,7 +181,7 @@ main { display: flex; flex-direction: column; gap: 14px; padding-top: 16px; }
 /* Collapsible cards */
 .fold { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; background: none; padding: 0; text-align: left; }
 .fold h2 { display: flex; align-items: center; flex-wrap: wrap; min-width: 0; }
-.fold .group-head { flex: none; }
+.fold .bgh { flex: none; }
 .fold .chev { flex: none; color: var(--muted); transition: transform 0.15s; }
 .card.closed .fold .chev { transform: rotate(-90deg); }
 .card.closed .lines, .card.closed .mini { display: none; }
@@ -207,10 +207,10 @@ button.line:active { background: var(--surface-2); }
 .q.m { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
 .q.end { background: var(--warn-soft); color: var(--warn); }
 .group-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: 0; }
-.group-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.group-head h2 { display: flex; align-items: center; }
-.group-head .tot { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
-.group-head .tot small { display: block; font-size: 0.74rem; color: var(--muted); font-weight: 500; }
+.bgh { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.bgh h2 { display: flex; align-items: center; }
+.bgh .tot { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+.bgh .tot small { display: block; font-size: 0.74rem; color: var(--muted); font-weight: 500; }
 details.ended { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); padding: 12px 14px; }
 details.ended summary { cursor: pointer; font-weight: 700; color: var(--muted); font-size: 0.9rem; }
 details.ended .lines { margin: 10px -14px -12px; }
@@ -573,7 +573,7 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     const open = !isClosed(id);
     return `<button class="fold" type="button" data-fold="${esc(id)}" aria-expanded="${open}">
         <h2>${title}${count ? `<span class="count">${count}</span>` : ""}</h2>
-        <span class="group-head"><span class="tot">${total}<small>${sub}</small></span>${chev}</span>
+        <span class="bgh"><span class="tot">${total}<small>${sub}</small></span>${chev}</span>
       </button>`;
   }
   function spendingMark(c) {

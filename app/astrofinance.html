@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
 <style>
 /* Layout: one phone-width column. Sticky header with period + search, list of
    cardholder groups, a bottom tab bar, and a selection bar that rises above it. */
@@ -325,6 +325,189 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
 .recon-row .actions .btn { padding: 7px 12px; font-size: 0.82rem; }
 .recon-row .note { font-size: 0.8rem; color: var(--muted); grid-column: 1 / -1; }
 
+/* Presupuesto: extra tokens on top of the app's palette (one color per spending group). */
+#budgetRoot {
+  --danger-soft: #fbe3e4; --scrim: rgba(10, 14, 22, 0.45); --band: rgba(23, 130, 74, 0.16); --node-ink: #111526;
+  --g-casa: #2a78d6; --g-transporte: #eb6834; --g-salud: #1baf7a; --g-personal: #eda100; --g-otros: #e87ba4; --g-ahorro: #008300;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) #budgetRoot {
+    --danger-soft: #3a1619; --scrim: rgba(0, 0, 0, 0.6); --band: rgba(79, 198, 140, 0.18);
+    --g-casa: #3987e5; --g-transporte: #d95926; --g-salud: #199e70; --g-personal: #c98500; --g-otros: #d55181; --g-ahorro: #008300;
+  }
+}
+:root[data-theme="dark"] #budgetRoot {
+  --danger-soft: #3a1619; --scrim: rgba(0, 0, 0, 0.6); --band: rgba(79, 198, 140, 0.18);
+  --g-casa: #3987e5; --g-transporte: #d95926; --g-salud: #199e70; --g-personal: #c98500; --g-otros: #d55181; --g-ahorro: #008300;
+}
+#budgetRoot .bmain { display: flex; flex-direction: column; gap: 14px; padding-block: 14px 8px; }
+#budgetRoot .bhead { display: flex; align-items: center; gap: 12px; padding-top: 16px; }
+#budgetRoot .bhead .title { flex: 1; min-width: 0; }
+#budgetRoot .bhead h2 { margin: 0; font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; }
+#budgetRoot .bhead .sub { font-size: 0.78rem; color: var(--muted); }
+#budgetRoot .sheet { max-width: 520px; box-shadow: var(--shadow); }
+#budgetRoot .sheet h2 { margin: 0; }
+#budgetRoot .num {font-family: var(--font-num); font-variant-numeric: tabular-nums; letter-spacing: -0.02em;}
+#budgetRoot .seg {flex: none; display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--surface-2);}
+#budgetRoot .seg button {border: 0; background: none; padding: 5px 11px; border-radius: 999px; font-weight: 700; font-size: 0.9rem; color: var(--muted); font-family: var(--font-num);}
+#budgetRoot .seg button[aria-pressed="true"] {background: var(--accent); color: var(--on-accent);}
+#budgetRoot .rate {display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 0; color: var(--muted); font-size: 0.78rem; text-decoration: underline dotted; text-underline-offset: 3px;}
+#budgetRoot .rate[disabled] {text-decoration: none; cursor: default;}
+#budgetRoot .hero {background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 10px;}
+#budgetRoot .eyebrow {font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 700;}
+#budgetRoot .hero-figure {display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;}
+#budgetRoot .hero-figure .big {font-family: var(--font-display); font-weight: 800; font-size: clamp(2.3rem, 9vw, 3.1rem); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;}
+#budgetRoot .hero-figure .big.neg {color: var(--danger);}
+#budgetRoot .hero-figure .pct {font-family: var(--font-num); font-weight: 600; font-size: 1.05rem; color: var(--muted);}
+#budgetRoot .status {align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 999px;}
+#budgetRoot .status.ok {background: var(--ok-soft); color: var(--ok);}
+#budgetRoot .status.warn {background: var(--warn-soft); color: var(--warn);}
+#budgetRoot .status.bad {background: var(--danger-soft); color: var(--danger);}
+#budgetRoot .gauge {position: relative; height: 34px; margin-top: 4px;}
+#budgetRoot .gauge .track {position: absolute; left: 0; right: 0; top: 8px; height: 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden;}
+#budgetRoot .gauge .band {position: absolute; top: 0; bottom: 0; background: var(--band); border-left: 1px dashed var(--ok); border-right: 1px dashed var(--ok);}
+#budgetRoot .gauge .marker {position: absolute; top: 2px; width: 4px; height: 22px; margin-left: -2px; border-radius: 4px; background: var(--fg); box-shadow: 0 0 0 2px var(--surface);}
+#budgetRoot .gauge .tick {position: absolute; top: 22px; font-size: 0.68rem; color: var(--muted); font-family: var(--font-num); transform: translateX(-50%);}
+#budgetRoot .gauge .tick.end {transform: translateX(-100%);}
+#budgetRoot .gauge .tick.start {transform: none;}
+#budgetRoot .hero .foot-line {font-size: 0.82rem; color: var(--muted);}
+#budgetRoot .card {background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0;}
+#budgetRoot .card h2 {margin: 0; font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em;}
+#budgetRoot .card-head {display: flex; align-items: baseline; justify-content: space-between; gap: 10px;}
+#budgetRoot .card-head .meta {font-size: 0.8rem; color: var(--muted);}
+#budgetRoot .stack {position: relative; display: flex; gap: 2px; height: 26px; border-radius: 8px; overflow: hidden;}
+#budgetRoot .stack .s {display: block; height: 100%; min-width: 3px; border: 0; padding: 0;}
+#budgetRoot .stack .s.free {background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, var(--line) 6px 8px);}
+#budgetRoot .stack .s.over {background: repeating-linear-gradient(135deg, var(--danger-soft) 0 6px, var(--danger) 6px 8px);}
+#budgetRoot .legend {display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; margin: 0; padding: 0; list-style: none;}
+@media (max-width: 520px) {
+  #budgetRoot .legend { grid-template-columns: minmax(0, 1fr); }
+}
+#budgetRoot .legend li {display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 0.86rem;}
+#budgetRoot .legend .sw {width: 12px; height: 12px; border-radius: 4px;}
+#budgetRoot .legend .sw.free {background: repeating-linear-gradient(135deg, var(--surface-2) 0 3px, var(--muted) 3px 4px); border: 1px solid var(--line);}
+#budgetRoot .legend .v {font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 0.82rem; color: var(--muted);}
+#budgetRoot .legend .v b {color: var(--fg); font-weight: 600;}
+#budgetRoot .tip {position: fixed; z-index: 50; pointer-events: none; background: var(--fg); color: var(--bg); font-size: 0.8rem; font-weight: 600; padding: 6px 9px; border-radius: 8px; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px));}
+#budgetRoot .qtabs {display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;}
+#budgetRoot .qtab {display: flex; flex-direction: column; gap: 4px; text-align: left; min-width: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2);}
+#budgetRoot .qtab .when {font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; color: var(--muted);}
+#budgetRoot .qtab .left {font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; line-height: 1.1; font-variant-numeric: tabular-nums;}
+#budgetRoot .qtab .left small {font-family: var(--font-body); font-size: 0.74rem; font-weight: 600; color: var(--muted);}
+#budgetRoot .qtab .left.neg {color: var(--danger);}
+#budgetRoot .qtab[aria-pressed="true"] {background: var(--accent-soft); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset;}
+#budgetRoot .qtab[aria-pressed="true"] .when {color: var(--accent);}
+#budgetRoot .qtab .flag {align-self: flex-start; font-size: 0.68rem; font-weight: 700; color: var(--warn); background: var(--warn-soft); border-radius: 999px; padding: 1px 7px;}
+#budgetRoot .drain {display: flex; gap: 2px; height: 14px; border-radius: 6px; overflow: hidden;}
+#budgetRoot .drain .s {display: block; height: 100%; min-width: 3px;}
+#budgetRoot .drain .s.free {background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, var(--line) 6px 8px);}
+#budgetRoot .flow {list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;}
+#budgetRoot .flow-in, #budgetRoot .flow-out {display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; padding: 10px 0;}
+#budgetRoot .flow-in .label, #budgetRoot .flow-out .label {font-weight: 700;}
+#budgetRoot .flow-in .label small, #budgetRoot .flow-out .label small {display: block; font-weight: 500; font-size: 0.78rem; color: var(--muted);}
+#budgetRoot .flow-in .amt, #budgetRoot .flow-out .amt {font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; font-variant-numeric: tabular-nums; text-align: right;}
+#budgetRoot .flow-in .amt {color: var(--ok);}
+#budgetRoot .flow-out .amt.neg {color: var(--danger);}
+#budgetRoot .flow-icon {width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center;}
+#budgetRoot .flow-in .flow-icon {background: var(--ok-soft); color: var(--ok);}
+#budgetRoot .flow-out .flow-icon {background: var(--accent-soft); color: var(--accent);}
+#budgetRoot .flow-out.neg .flow-icon {background: var(--danger-soft); color: var(--danger);}
+#budgetRoot .start-mark {display: flex; align-items: center; gap: 10px; color: var(--accent); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; padding: 4px 0 6px;}
+#budgetRoot .start-mark::before, #budgetRoot .start-mark::after {content: ""; flex: 1; border-top: 1.5px dashed var(--accent); opacity: 0.6;}
+#budgetRoot .step {position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 2px 10px; padding: 9px 0; width: 100%; text-align: left; border: 0; background: none;}
+#budgetRoot .step:hover {background: var(--surface-2); border-radius: 10px;}
+#budgetRoot .step::before {content: ""; position: absolute; left: 13px; top: 0; bottom: 0; width: 2px; background: var(--line);}
+#budgetRoot .step .node {position: relative; z-index: 1; grid-row: 1 / span 2; align-self: start; width: 24px; height: 24px; margin-left: 2px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-num); font-size: 0.7rem; font-weight: 700; color: var(--node-ink); box-shadow: 0 0 0 3px var(--surface);}
+#budgetRoot .step .what {font-weight: 700; font-size: 0.92rem; overflow-wrap: anywhere;}
+#budgetRoot .step .what small {font-weight: 500; color: var(--muted); font-size: 0.76rem;}
+#budgetRoot .step .out {font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; font-size: 0.92rem;}
+#budgetRoot .step .bal {grid-column: 2 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 0.76rem; color: var(--muted);}
+#budgetRoot .step .bal .meter {height: 5px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden;}
+#budgetRoot .step .bal .meter > i {display: block; height: 100%; background: var(--accent); border-radius: 999px;}
+#budgetRoot .step .bal b {font-family: var(--font-num); font-weight: 600; color: var(--fg);}
+#budgetRoot .step.over .bal b {color: var(--danger);}
+#budgetRoot .step.over .node {box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--danger);}
+#budgetRoot .flow-note {font-size: 0.78rem; color: var(--muted); margin: 0;}
+#budgetRoot .section-mark {display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 2px 0; border-top: 2px solid var(--fg); margin-top: 6px;}
+#budgetRoot .section-mark h2 {margin: 0; font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em;}
+#budgetRoot .section-mark .side {display: flex; align-items: baseline; gap: 12px;}
+#budgetRoot .section-mark .tot {font-family: var(--font-num); font-weight: 600;}
+#budgetRoot .linkish {border: 0; background: none; padding: 4px 0; color: var(--accent); font-weight: 700; font-size: 0.82rem;}
+#budgetRoot .fold {display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; background: none; padding: 0; text-align: left;}
+#budgetRoot .fold h2 {display: flex; align-items: center; flex-wrap: wrap; min-width: 0;}
+#budgetRoot .fold .bgh {flex: none;}
+#budgetRoot .fold .chev {flex: none; color: var(--muted); transition: transform 0.15s;}
+#budgetRoot .card.closed .fold .chev {transform: rotate(-90deg);}
+#budgetRoot .card.closed .lines, #budgetRoot .card.closed .mini {display: none;}
+#budgetRoot .card.closed {gap: 0;}
+#budgetRoot .fold .count {font-size: 0.76rem; font-weight: 500; color: var(--muted); margin-left: 8px; font-family: var(--font-body);}
+@media (prefers-reduced-motion: reduce) {
+  #budgetRoot .fold .chev { transition: none; }
+}
+#budgetRoot .lines {display: flex; flex-direction: column; margin: 0 -14px -14px;}
+#budgetRoot .line {display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 11px 14px; border: 0; border-top: 1px solid var(--line); background: none; width: 100%; text-align: left;}
+#budgetRoot button.line:hover {background: var(--surface-2);}
+#budgetRoot button.line:active {background: var(--surface-2);}
+#budgetRoot .line .name {font-weight: 700; font-size: 0.93rem; overflow-wrap: anywhere;}
+#budgetRoot .line .amt {font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; font-size: 0.95rem;}
+#budgetRoot .line .amt.minus {color: var(--danger);}
+#budgetRoot .line .meta {display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted);}
+#budgetRoot .line .meta .orig {font-family: var(--font-num);}
+#budgetRoot .line .share {font-family: var(--font-num); font-size: 0.78rem; color: var(--muted); text-align: right;}
+#budgetRoot .line .note {grid-column: 1 / -1; font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere;}
+#budgetRoot .line.total {background: var(--surface-2);}
+#budgetRoot .line.total .name {font-family: var(--font-display);}
+#budgetRoot .q {display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent);}
+#budgetRoot .q.m {background: var(--surface-2); color: var(--muted); border: 1px solid var(--line);}
+#budgetRoot .q.end {background: var(--warn-soft); color: var(--warn);}
+#budgetRoot .group-dot {display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: 0;}
+#budgetRoot .bgh {display: flex; align-items: center; justify-content: space-between; gap: 10px;}
+#budgetRoot .bgh h2 {display: flex; align-items: center;}
+#budgetRoot .bgh .tot {font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; text-align: right;}
+#budgetRoot .bgh .tot small {display: block; font-size: 0.74rem; color: var(--muted); font-weight: 500;}
+#budgetRoot details.ended {background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); padding: 12px 14px;}
+#budgetRoot details.ended summary {cursor: pointer; font-weight: 700; color: var(--muted); font-size: 0.9rem;}
+#budgetRoot details.ended .lines {margin: 10px -14px -12px;}
+#budgetRoot details.ended .line .name {color: var(--muted); text-decoration: line-through;}
+#budgetRoot .add {border: 1px dashed var(--accent); color: var(--accent); background: var(--accent-soft); border-radius: var(--radius); padding: 12px; font-weight: 700; display: flex; justify-content: center; align-items: center; gap: 8px;}
+#budgetRoot .empty, #budgetRoot .notice {background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); padding: 22px 18px; text-align: center; color: var(--muted);}
+#budgetRoot .notice {border-style: solid; text-align: left; color: var(--fg); display: flex; flex-direction: column; gap: 8px; align-items: flex-start;}
+#budgetRoot .notice p {margin: 0; color: var(--muted);}
+#budgetRoot .skeleton {height: 120px; border-radius: 18px; background: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%); background-size: 200% 100%; animation: shimmer 1.4s infinite linear; border: 1px solid var(--line);}
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  #budgetRoot .skeleton { animation: none; }
+}
+#budgetRoot .btn {display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; border-radius: 12px; border: 1px solid transparent; font-weight: 700; background: var(--accent); color: var(--on-accent);}
+#budgetRoot .btn.secondary {background: var(--surface-2); color: var(--fg); border-color: var(--line);}
+#budgetRoot .btn.danger {background: var(--danger-soft); color: var(--danger);}
+#budgetRoot .btn.danger.sure {background: var(--danger); color: var(--surface);}
+#budgetRoot .btn[disabled] {opacity: 0.55; cursor: progress;}
+#budgetRoot .foot {font-size: 0.76rem; color: var(--muted); text-align: center; margin: 4px 0 0;}
+#budgetRoot .scrim {position: fixed; inset: 0; z-index: 40; background: var(--scrim); display: flex; align-items: flex-end; justify-content: center;}
+#budgetRoot .sheet {width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; background: var(--surface); border-radius: 18px 18px 0 0; padding: 18px max(16px, env(safe-area-inset-left, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 14px;}
+@media (min-width: 600px) {
+  #budgetRoot .scrim { align-items: center; }
+  #budgetRoot .sheet { border-radius: 18px; }
+}
+#budgetRoot .sheet h2 {margin: 0; font-family: var(--font-display); font-size: 1.2rem;}
+#budgetRoot .sheet .hint {color: var(--muted); font-size: 0.82rem; margin: -6px 0 0;}
+#budgetRoot .fld {display: flex; flex-direction: column; gap: 6px; min-width: 0;}
+#budgetRoot .fld > span {font-size: 0.78rem; font-weight: 700; color: var(--muted);}
+#budgetRoot .fld input, #budgetRoot .fld select, #budgetRoot .fld textarea {border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; background: var(--surface-2); min-width: 0; width: 100%;}
+#budgetRoot .fld textarea {min-height: 60px; resize: vertical;}
+#budgetRoot .fld-row {display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px;}
+#budgetRoot .pick {display: flex; flex-wrap: wrap; gap: 6px;}
+#budgetRoot .pick label {position: relative;}
+#budgetRoot .pick input {position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer;}
+#budgetRoot .pick span {display: inline-block; border: 1px solid var(--line); background: var(--surface); color: var(--muted); padding: 6px 12px; border-radius: 999px; font-size: 0.86rem; font-weight: 600;}
+#budgetRoot .pick input:checked + span {background: var(--accent); border-color: var(--accent); color: var(--on-accent);}
+#budgetRoot .pick input:focus-visible + span {outline: 2px solid var(--accent); outline-offset: 2px;}
+#budgetRoot .preview {font-size: 0.82rem; color: var(--muted);}
+#budgetRoot .preview b {color: var(--fg); font-family: var(--font-num);}
+#budgetRoot .sheet .actions {display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;}
+#budgetRoot .sheet .actions .spacer {flex: 1;}
+#budgetRoot .sheet .error {color: var(--danger); font-size: 0.85rem; margin: 0;}
 </style>
 
 <div class="app" id="app">
@@ -360,6 +543,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
   </header>
 
   <main class="gutter" id="main"></main>
+  <section class="gutter" id="budgetRoot" aria-label="Presupuesto" hidden><div id="bApp"></div><div id="bModal"></div><div id="bTip" class="tip" hidden></div></section>
 </div>
 
 <div class="selbar" id="selbar" hidden>
@@ -378,6 +562,10 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
     </button>
   </div>
+  <button class="drawer-item tab" type="button" data-tab="budget">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>
+    <span class="text">Presupuesto<small>Quincenas, gastos y ahorro</small></span>
+  </button>
   <button class="drawer-item tab" type="button" data-tab="pending">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
     <span class="text">Pendientes</span><span class="badge" id="pendingBadge" hidden></span>
@@ -394,11 +582,6 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
     <span class="text">Pagos</span>
   </button>
-  <a class="drawer-item" data-menu="close" href="https://claude.ai/artifact/GeLwYk8hJQnSjgnZNMMGDn" target="_blank" rel="noopener">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>
-    <span class="text">Presupuesto<small>Gastos, ahorro y saldo libre del mes</small></span>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>
-  </a>
   <div class="drawer-label">Páginas de la familia</div>
   <a class="drawer-item" data-menu="close" href="https://claude.ai/artifact/S8mTvFQ1AvvewFtxYiSHrT" target="_blank" rel="noopener">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M6 15h4"/></svg>
@@ -424,6 +607,617 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
 
 <div id="modal"></div>
 <div id="toastHost"></div>
+
+<script>
+(() => {
+  "use strict";
+  // ---------- Presupuesto section (reads and writes the Presupuesto tab) ----------
+
+  const SERVER = "Google Sheets";
+  const SHEET_ID = "1jLcS4xf7jNM6OE2nGU5aHX3JThDyL4ud5gVqhvZ13ss";
+  const TAB = "Presupuesto";
+  const RANGE = TAB + "!A:K";
+  const COLS = ["Tipo", "Concepto", "Monto", "Moneda", "Quincena", "Grupo", "Hasta", "Notas"];
+  const RATE_HEADER = "TipoCambio", GOAL_HEADER = "MetaSaldo";
+  // Spending groups in a fixed order, each with its own color. Anything else falls in "Otros".
+  const GROUPS = [["Casa", "--g-casa"], ["Transporte", "--g-transporte"], ["Salud", "--g-salud"], ["Personal", "--g-personal"], ["Otros", "--g-otros"], ["Ahorro", "--g-ahorro"]];
+  const TYPES = [["Gasto", "Gasto"], ["Ahorro", "Ahorro"], ["Ingreso", "Ingreso"], ["Deducción", "Deducción"]];
+  const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  const CONSENT = ["approval_required", "not_in_manifest", "consent_required"];
+
+  const saved = (k, d) => { try { return localStorage.getItem(k) || d; } catch { return d; } };
+  const state = {
+    cur: saved("presupuesto:moneda", "CRC") === "USD" ? "USD" : "CRC",
+    data: null, error: null, mcp: undefined,
+    editing: null, saving: false, saveError: "", confirmDelete: false,
+    rateEditing: false,
+    q: new Date().getDate() <= 15 ? 1 : 2,
+    // Cards whose fold differs from the default: spending groups start closed, income starts open.
+    flipped: new Set((() => { try { return JSON.parse(localStorage.getItem("presupuesto:plegado") || "[]"); } catch { return []; } })()),
+  };
+  function saveClosed() { try { localStorage.setItem("presupuesto:plegado", JSON.stringify([...state.flipped])); } catch { /* storage unavailable */ } }
+  const isClosed = (id) => (id !== "Ingresos") !== state.flipped.has(id);
+  function setClosed(id, closed) { if (closed === (id !== "Ingresos")) state.flipped.delete(id); else state.flipped.add(id); }
+
+  // ---------- Helpers ----------
+  const $ = (sel) => document.querySelector(sel);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  function parseAmount(raw) {
+    if (typeof raw === "number") return raw;
+    const t = String(raw ?? "").replace(/[^\d.,-]/g, "").replace(/,/g, "");
+    const n = parseFloat(t);
+    return isNaN(n) ? 0 : n;
+  }
+  function normCur(raw) {
+    const t = String(raw ?? "").trim().toUpperCase();
+    if (t === "%" ) return "%";
+    if (t === "CRC" || t === "₡" || t.startsWith("COL")) return "CRC";
+    return "USD";
+  }
+  function normType(raw) {
+    const t = String(raw ?? "").trim().toLowerCase();
+    if (t.startsWith("ingres")) return "Ingreso";
+    if (t.startsWith("deduc")) return "Deducción";
+    if (t.startsWith("ahorr")) return "Ahorro";
+    if (t.startsWith("gast")) return "Gasto";
+    return "";
+  }
+  // "Hasta" is a month: MM/YYYY (also reads yyyy-mm, d/m/yyyy and a Sheets date serial). Returns "yyyy-mm" or "".
+  function parseMonth(raw) {
+    const t = String(raw ?? "").trim();
+    if (/^\d{5}(\.\d+)?$/.test(t)) {
+      const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(+t) * 86400000);
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    }
+    let m = t.match(/^(\d{4})-(\d{1,2})/);
+    if (m) return `${m[1]}-${m[2].padStart(2, "0")}`;
+    m = t.match(/^(?:\d{1,2}[\/-])?(\d{1,2})[\/-](\d{4})$/);
+    if (m) return `${m[2]}-${m[1].padStart(2, "0")}`;
+    return "";
+  }
+  const monthLabel = (ym) => { if (!ym) return ""; const [y, m] = ym.split("-").map(Number); return `${MONTHS[m - 1]} ${y}`; };
+  const sheetMonth = (ym) => { if (!ym) return ""; const [y, m] = ym.split("-"); return `${m}/${y}`; };
+  function thisMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
+  function fmtStamp(ms) {
+    const d = new Date(ms);
+    if (isNaN(d)) return "";
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+  }
+  function groupOf(raw, type) {
+    if (type === "Ahorro") return "Ahorro";
+    const t = String(raw ?? "").trim().toLowerCase();
+    const g = GROUPS.find(([name]) => name.toLowerCase() === t);
+    return g && g[0] !== "Ahorro" ? g[0] : "Otros";
+  }
+  const groupColor = (g) => `var(${(GROUPS.find(([n]) => n === g) || GROUPS[4])[1]})`;
+
+  // Every amount is kept in dollars inside the page; colones lines are converted with the sheet's rate.
+  function toUsd(amount, cur, rate) { return cur === "CRC" ? (rate ? amount / rate : 0) : amount; }
+  function money(usd, cur = state.cur) {
+    const rate = state.data ? state.data.rate : 0;
+    const neg = usd < 0;
+    const v = Math.abs(cur === "CRC" ? usd * rate : usd);
+    return (neg ? "−" : "") + (cur === "CRC" ? "₡" : "$") + Math.round(v).toLocaleString("en-US");
+  }
+  function native(l) {
+    if (l.cur === "%") return `${l.amount}%`;
+    return (l.cur === "CRC" ? "₡" : "$") + (Math.round(l.amount * 100) / 100).toLocaleString("en-US");
+  }
+  const pct = (part, whole) => (whole ? (part / whole) * 100 : 0);
+  const fmtPct = (n) => `${n.toFixed(n >= 10 || n === 0 ? 0 : 1)}%`;
+
+  // ---------- Sheet → budget ----------
+  function valuesOf(result) {
+    const p = result && (result.payload ?? result);
+    if (p && Array.isArray(p.values)) return p.values;
+    if (p && typeof p === "object" && !Array.isArray(p)) return [];
+    throw new Error("Respuesta inesperada de Google Sheets.");
+  }
+  function build(values) {
+    if (!values.length) throw new Error(`La pestaña ${TAB} está vacía.`);
+    const header = values[0].map((h) => String(h).trim());
+    const idx = Object.fromEntries(COLS.map((c) => [c, header.indexOf(c)]));
+    if (Object.values(idx).some((i) => i < 0)) throw new Error(`La pestaña ${TAB} no tiene las columnas esperadas.`);
+    const cell = (name) => { const i = header.indexOf(name); return i < 0 || !values[1] ? "" : values[1][i]; };
+    const rate = parseAmount(cell(RATE_HEADER)) || 500;
+    const goalM = String(cell(GOAL_HEADER) || "10-20").match(/(\d+(?:\.\d+)?)\D+(\d+(?:\.\d+)?)/);
+    const goal = goalM ? [+goalM[1], +goalM[2]] : [10, 20];
+    const now = thisMonth();
+    const lines = [];
+    values.slice(1).forEach((r, i) => {
+      const type = normType(r[idx.Tipo]);
+      const name = String(r[idx.Concepto] ?? "").trim();
+      if (!type || !name) return;
+      const cur = normCur(r[idx.Moneda]);
+      const amount = parseAmount(r[idx.Monto]);
+      const qRaw = String(r[idx.Quincena] ?? "").trim();
+      // 1 or 2: that payday only. "Ambas": the amount comes or goes every payday (twice a month).
+      // Blank: a monthly amount, split between both paydays.
+      const q = qRaw.startsWith("1") ? 1 : qRaw.startsWith("2") ? 2 : /^(amb|cada|q)/i.test(qRaw) ? 3 : 0;
+      const until = parseMonth(r[idx.Hasta]);
+      lines.push({
+        row: i + 2, type, name, amount, cur: type === "Deducción" ? cur : cur === "%" ? "USD" : cur, q,
+        groupRaw: String(r[idx.Grupo] ?? "").trim(), group: groupOf(r[idx.Grupo], type),
+        until, ended: !!until && until < now,
+        notes: String(r[idx.Notas] ?? "").trim(),
+      });
+    });
+    return { lines, rate, goal, at: Date.now() };
+  }
+
+  // What a line adds up to in a month, in dollars.
+  const monthly = (l, rate) => toUsd(l.amount, l.cur, rate) * (l.q === 3 ? 2 : 1);
+  // The part of a line's monthly amount that falls on payday q.
+  const shareOn = (l, q) => (l.q === q ? l.usd : l.q === 0 || l.q === 3 ? l.usd / 2 : 0);
+  const sumOn = (list, q) => list.reduce((s, l) => s + shareOn(l, q), 0);
+  function compute(d) {
+    const active = d.lines.filter((l) => !l.ended);
+    const incomes = active.filter((l) => l.type === "Ingreso").map((l) => ({ ...l, usd: monthly(l, d.rate) }));
+    const gross = incomes.reduce((s, l) => s + l.usd, 0);
+    const deductions = active.filter((l) => l.type === "Deducción").map((l) => ({ ...l, usd: l.cur === "%" ? (gross * l.amount) / 100 : monthly(l, d.rate) }));
+    const net = gross - deductions.reduce((s, l) => s + l.usd, 0);
+    const spend = active.filter((l) => l.type === "Gasto" || l.type === "Ahorro").map((l) => ({ ...l, usd: monthly(l, d.rate) }));
+    const total = spend.reduce((s, l) => s + l.usd, 0);
+    const groups = GROUPS.map(([g]) => {
+      const items = spend.filter((l) => l.group === g);
+      return { g, items, usd: items.reduce((s, l) => s + l.usd, 0) };
+    }).filter((x) => x.items.length);
+    const qs = [1, 2].map((q) => {
+      const income = sumOn(incomes, q) - sumOn(deductions, q);
+      const out = sumOn(spend, q);
+      return { q, income, out, left: income - out };
+    });
+    const ended = d.lines.filter((l) => l.ended);
+    return { gross, deductions, net, spend, total, groups, qs, left: net - total, ended, incomes };
+  }
+
+  // ---------- Rendering ----------
+  function render() {
+    const d = state.data;
+    const owner = !!d;
+    let html = `
+      <div class="bhead">
+        <div class="title"><h2>Presupuesto 2026</h2>
+          <div class="sub">${d ? `<button class="rate" type="button" data-action="rate" ${owner ? "" : "disabled"} aria-label="Cambiar tipo de cambio">₡${esc(d.rate.toLocaleString("en-US"))} por dólar</button> · en vivo · ${esc(fmtStamp(d.at))}` : "Mensual, en dólares y colones"}</div>
+        </div>
+        <div class="seg" role="group" aria-label="Moneda">
+          <button type="button" data-cur="CRC" aria-pressed="${state.cur === "CRC"}" aria-label="Colones">₡</button>
+          <button type="button" data-cur="USD" aria-pressed="${state.cur === "USD"}" aria-label="Dólares">$</button>
+        </div>
+      </div>
+      <div class="bmain">`;
+    if (!d) {
+      if (state.error && CONSENT.includes(state.error.code)) {
+        html += `<div class="notice"><p>Esta página lee la pestaña ${TAB} de tu hoja AstroFinance con tu conector de Google Sheets.</p>
+          <button class="btn" type="button" data-action="connect">Conectar con la hoja</button></div>`;
+      } else if (state.error) {
+        html += `<div class="notice"><p>${esc(state.error.message || "No se pudo leer la hoja.")}</p>
+          <button class="btn secondary" type="button" data-action="connect">Intentar de nuevo</button></div>`;
+      } else if (state.mcp === null) {
+        html += `<div class="empty">Esta vista no tiene acceso a Google Sheets. Ábrela desde tu cuenta de claude.ai.</div>`;
+      } else {
+        html += `<div class="skeleton"></div><div class="skeleton" style="height:80px"></div>`;
+      }
+      html += `</div>`;
+      $("#bApp").innerHTML = html;
+      return;
+    }
+    const c = compute(d);
+    html += hero(c, d) + paydays(c) + split(c) + income(c) + spendingMark(c) + c.groups.map((g) => groupCard(g, c)).join("") + ended(c);
+    html += `<button class="add" type="button" data-action="new"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Agregar línea</button>`;
+    html += `<p class="foot">Toca cualquier línea para cambiarla. Todo se guarda en la pestaña ${TAB} de tu hoja.</p></div>`;
+    $("#bApp").innerHTML = html;
+    if (!state.editing && !state.rateEditing) $("#bModal").innerHTML = "";
+  }
+
+  function hero(c, d) {
+    const p = pct(c.left, c.net);
+    const [lo, hi] = d.goal;
+    const max = Math.max(30, Math.ceil((p + 5) / 10) * 10);
+    const pos = (v) => Math.min(100, Math.max(0, (v / max) * 100));
+    let cls, label;
+    if (c.left < 0) { cls = "bad"; label = `Te pasas por ${money(-c.left)} al mes`; }
+    else if (p < lo) { cls = "warn"; label = `Debajo de la meta del ${lo}–${hi}%`; }
+    else if (p > hi) { cls = "ok"; label = `Arriba de la meta: podrías ahorrar más`; }
+    else { cls = "ok"; label = `Dentro de la meta del ${lo}–${hi}%`; }
+    const icon = cls === "ok"
+      ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>`
+      : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/></svg>`;
+    const saving = c.groups.find((g) => g.g === "Ahorro");
+    return `<section class="hero" aria-label="Saldo libre">
+      <span class="eyebrow">Te queda libre cada mes</span>
+      <div class="hero-figure"><span class="big ${c.left < 0 ? "neg" : ""}">${esc(money(c.left))}</span><span class="pct">${esc(fmtPct(p))} del ingreso neto</span></div>
+      <span class="status ${cls}">${icon}${esc(label)}</span>
+      <div class="gauge" role="img" aria-label="Saldo libre ${esc(fmtPct(p))}; meta ${lo} a ${hi}%">
+        <div class="track"><div class="band" style="left:${pos(lo)}%;width:${pos(hi) - pos(lo)}%"></div></div>
+        <div class="marker" style="left:${pos(Math.max(0, p))}%"></div>
+        <span class="tick start" style="left:0">0%</span>
+        <span class="tick" style="left:${pos(lo)}%">${lo}%</span>
+        <span class="tick" style="left:${pos(hi)}%">${hi}%</span>
+        <span class="tick end" style="left:100%">${max}%</span>
+      </div>
+      <span class="foot-line">Ingreso neto <b class="num">${esc(money(c.net))}</b> · gastos y ahorro <b class="num">${esc(money(c.total))}</b>${saving ? ` · ahorras <b class="num">${esc(fmtPct(pct(saving.usd, c.net)))}</b>` : ""}</span>
+    </section>`;
+  }
+
+  function split(c) {
+    const base = Math.max(c.net, c.total);
+    const segs = c.groups.map((g) => ({ label: g.g, usd: g.usd, color: groupColor(g.g) }));
+    if (c.left > 0) segs.push({ label: "Libre", usd: c.left, free: true });
+    const bar = segs.map((s) => `<span class="s ${s.free ? "free" : ""}" tabindex="0" data-tip="${esc(`${s.label}: ${money(s.usd)} · ${fmtPct(pct(s.usd, c.net))}`)}" style="flex:${s.usd / base} 1 0;${s.free ? "" : `background:${s.color}`}"></span>`).join("");
+    const legend = segs.map((s) => `<li><span class="sw ${s.free ? "free" : ""}" style="${s.free ? "" : `background:${s.color}`}"></span><span>${esc(s.label)}</span><span class="v"><b>${esc(money(s.usd))}</b> · ${esc(fmtPct(pct(s.usd, c.net)))}</span></li>`).join("");
+    return `<section class="card" aria-label="Cómo se reparte el mes">
+      <div class="card-head"><h2>Cómo se reparte el mes</h2><span class="meta">% del ingreso neto</span></div>
+      <div class="stack" role="img" aria-label="Reparto del ingreso neto por grupo">${bar}</div>
+      <ul class="legend">${legend}</ul>
+      ${c.left < 0 ? `<p class="foot" style="text-align:left;color:var(--danger)">Los gastos superan el ingreso neto por ${esc(money(-c.left))}.</p>` : ""}
+    </section>`;
+  }
+
+  // One payday as a flow: the net pay comes in, then each line that falls on it, in the
+  // order of the sheet's rows, with what is left after each one.
+  function paydays(c) {
+    const tight = c.qs[0].left !== c.qs[1].left ? (c.qs[0].left < c.qs[1].left ? 1 : 2) : 0;
+    const tabs = c.qs.map((q) => `<button class="qtab" type="button" data-q="${q.q}" aria-pressed="${state.q === q.q}">
+        <span class="when">${q.q === 1 ? "1ª" : "2ª"} quincena</span>
+        <span class="left ${q.left < 0 ? "neg" : ""}">${esc(money(q.left))} <small>libres</small></span>
+        ${tight === q.q ? `<span class="flag">La más justa</span>` : ""}
+      </button>`).join("");
+    const q = c.qs[state.q - 1];
+    const steps = c.spend.filter((l) => shareOn(l, q.q) > 0).sort((a, b) => a.row - b.row);
+    let bal = q.income;
+    const base = Math.max(q.income, q.out) || 1;
+    const drain = steps.map((l) => `<span class="s" tabindex="0" data-tip="${esc(`${l.name}: ${money(shareOn(l, q.q))}`)}" style="flex:${shareOn(l, q.q) / base} 1 0;background:${groupColor(l.group)}"></span>`).join("")
+      + (q.left > 0 ? `<span class="s free" tabindex="0" data-tip="${esc(`Libre: ${money(q.left)}`)}" style="flex:${q.left / base} 1 0"></span>` : "");
+    const gross = sumOn(c.incomes, q.q), ded = sumOn(c.deductions, q.q);
+    const rows = steps.map((l, i) => {
+      const out = shareOn(l, q.q);
+      bal -= out;
+      const fill = q.income > 0 ? Math.max(0, Math.min(100, (bal / q.income) * 100)) : 0;
+      const how = l.q === 3 ? " · cada quincena" : l.q === 0 ? " · la mitad del mensual" : "";
+      return `<button class="step ${bal < 0 ? "over" : ""}" type="button" data-edit="${l.row}">
+        <span class="node" style="background:${groupColor(l.group)}">${i + 1}</span>
+        <span class="what">${esc(l.name)} <small>${esc(l.group)}${how}</small></span>
+        <span class="out">−${esc(money(out))}</span>
+        <span class="bal"><span class="meter" aria-hidden="true"><i style="width:${fill}%"></i></span><span>${bal < 0 ? "faltan" : "quedan"} <b>${esc(money(Math.abs(bal)))}</b></span></span>
+      </button>`;
+    }).join("");
+    const inIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7 7 7-7"/></svg>`;
+    const outIcon = q.left < 0
+      ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/></svg>`
+      : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>`;
+    return `<section class="card" aria-label="Tus quincenas">
+      <div class="card-head"><h2>Tus quincenas</h2><span class="meta">en el orden de la hoja</span></div>
+      <div class="qtabs" role="group" aria-label="Elegir quincena">${tabs}</div>
+      <div class="drain" role="img" aria-label="Cómo se va la ${q.q === 1 ? "1ª" : "2ª"} quincena">${drain}</div>
+      <div class="flow">
+        <div class="flow-in"><span class="flow-icon">${inIcon}</span>
+          <span class="label">Entra tu pago<small>${ded > 0 ? `Bruto ${esc(money(gross))} − deducciones ${esc(money(ded))}` : "Neto de la quincena"}</small></span>
+          <span class="amt">${esc(money(q.income))}</span></div>
+        <div class="start-mark">Empiezan los gastos</div>
+        ${rows || `<p class="flow-note">No hay gastos en esta quincena.</p>`}
+        <div class="flow-out ${q.left < 0 ? "neg" : ""}"><span class="flow-icon">${outIcon}</span>
+          <span class="label">${q.left < 0 ? "Te faltan" : "Te queda libre"}<small>${steps.length} gasto${steps.length === 1 ? "" : "s"} por ${esc(money(q.out))}</small></span>
+          <span class="amt ${q.left < 0 ? "neg" : ""}">${esc(money(Math.abs(q.left)))}</span></div>
+      </div>
+    </section>`;
+  }
+
+  function lineRow(l, c, opts = {}) {
+    const qTag = l.type === "Ingreso" || l.type === "Deducción" ? "" :
+      l.q === 3 ? `<span class="q">Cada Q</span>` : l.q ? `<span class="q">${l.q === 1 ? "1ª Q" : "2ª Q"}</span>` : `<span class="q m">Mensual</span>`;
+    const until = l.until ? `<span class="q end">${l.ended ? "Terminó" : "Hasta"} ${esc(monthLabel(l.until))}</span>` : "";
+    const showOrig = l.cur === "%" || l.cur !== state.cur || l.q === 3;
+    return `<button class="line" type="button" data-edit="${l.row}">
+      <span class="name">${esc(l.name)}</span>
+      <span class="amt ${opts.minus ? "minus" : ""}">${opts.minus ? "−" : ""}${esc(money(l.usd ?? toUsd(l.amount, l.cur, state.data.rate)))}</span>
+      <span class="meta">${qTag}${until}${showOrig ? `<span class="orig">${esc(native(l))}${l.q === 3 && l.cur !== "%" ? " c/q" : ""}</span>` : ""}</span>
+      <span class="share">${l.usd != null && !opts.noShare ? esc(fmtPct(pct(l.usd, c.net))) : ""}</span>
+      ${l.notes ? `<span class="note">${esc(l.notes)}</span>` : ""}
+    </button>`;
+  }
+
+  const chev = `<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
+  function foldHead(id, title, total, sub, count) {
+    const open = !isClosed(id);
+    return `<button class="fold" type="button" data-fold="${esc(id)}" aria-expanded="${open}">
+        <h2>${title}${count ? `<span class="count">${count}</span>` : ""}</h2>
+        <span class="bgh"><span class="tot">${total}<small>${sub}</small></span>${chev}</span>
+      </button>`;
+  }
+  function spendingMark(c) {
+    const ids = c.groups.map((g) => g.g);
+    const allClosed = ids.length && ids.every((id) => isClosed(id));
+    return `<div class="section-mark"><h2>Gastos y ahorro</h2>
+      <span class="side"><span class="tot">${esc(money(c.total))}</span>
+      <button class="linkish" type="button" data-fold-all="${allClosed ? "open" : "close"}">${allClosed ? "Abrir todo" : "Cerrar todo"}</button></span></div>`;
+  }
+
+  function income(c) {
+    const rows = c.incomes.map((l) => lineRow(l, c, { noShare: true })).join("")
+      + c.deductions.map((l) => lineRow(l, c, { minus: true, noShare: true })).join("");
+    return `<div class="section-mark"><h2>Ingresos</h2></div>
+    <section class="card ${isClosed("Ingresos") ? "closed" : ""}" aria-label="Ingresos">
+      ${foldHead("Ingresos", "Tu salario", esc(money(c.net)), "neto al mes", `${c.incomes.length + c.deductions.length} líneas`)}
+      <div class="lines">${rows || `<div class="line"><span class="name" style="color:var(--muted)">Agrega tu ingreso con “Agregar línea”.</span></div>`}
+        ${Math.abs(c.qs[0].income - c.qs[1].income) < 0.5
+          ? `<div class="line total"><span class="name">Neto por quincena</span><span class="amt">${esc(money(c.qs[0].income))}</span></div>`
+          : c.qs.map((q) => `<div class="line total"><span class="name">Neto ${q.q === 1 ? "1ª" : "2ª"} quincena</span><span class="amt">${esc(money(q.income))}</span></div>`).join("")}
+      </div>
+    </section>`;
+  }
+
+  function groupCard(g, c) {
+    const items = [...g.items].sort((a, b) => (a.q || 3) - (b.q || 3) || b.usd - a.usd);
+    return `<section class="card ${isClosed(g.g) ? "closed" : ""}" aria-label="${esc(g.g)}">
+      ${foldHead(g.g, `<span class="group-dot" style="background:${groupColor(g.g)}"></span>${esc(g.g)}`, esc(money(g.usd)), `${esc(fmtPct(pct(g.usd, c.net)))} del neto`, `${g.items.length} línea${g.items.length === 1 ? "" : "s"}`)}
+      <div class="lines">${items.map((l) => lineRow(l, c)).join("")}</div>
+    </section>`;
+  }
+
+  function ended(c) {
+    if (!c.ended.length) return "";
+    return `<details class="ended"><summary>Ya terminaron (${c.ended.length}) · no cuentan en el total</summary>
+      <div class="lines">${c.ended.map((l) => lineRow(l, c, { noShare: true })).join("")}</div></details>`;
+  }
+
+  // ---------- Edit sheet ----------
+  function renderModal() {
+    const host = $("#bModal");
+    if (state.rateEditing && state.data) { host.innerHTML = rateSheet(); return; }
+    if (!state.editing || !state.data) { host.innerHTML = ""; return; }
+    const isNew = state.editing === "new";
+    const l = isNew ? { type: "Gasto", name: "", amount: "", cur: "CRC", q: 1, groupRaw: "Casa", until: "", notes: "" }
+      : state.data.lines.find((x) => x.row === state.editing);
+    if (!l) { host.innerHTML = ""; return; }
+    const [uy, um] = l.until ? l.until.split("-") : ["", ""];
+    const year = new Date().getFullYear();
+    const years = [year - 1, year, year + 1, year + 2, year + 3, year + 4];
+    if (uy && !years.includes(+uy)) years.unshift(+uy);
+    const radios = (name, opts, value) => `<div class="pick">${opts.map(([v, label]) => `<label><input type="radio" name="${name}" value="${esc(v)}" ${String(value) === String(v) ? "checked" : ""}><span>${esc(label)}</span></label>`).join("")}</div>`;
+    host.innerHTML = `<div class="scrim" data-action="close">
+      <form class="sheet" data-sheet="line" role="dialog" aria-modal="true" aria-label="${isNew ? "Nueva línea" : esc(l.name)}">
+        <h2>${isNew ? "Nueva línea" : esc(l.name)}</h2>
+        ${isNew ? "" : `<p class="hint">Fila ${l.row} de la pestaña ${TAB}</p>`}
+        <div class="fld"><span>Tipo</span>${radios("type", TYPES, l.type)}</div>
+        <label class="fld"><span>Concepto</span><input id="f-name" name="name" required value="${esc(l.name)}" autocomplete="off"></label>
+        <div class="fld-row">
+          <label class="fld"><span>Monto</span><input id="f-amount" name="amount" inputmode="decimal" required value="${esc(l.amount)}"></label>
+          <label class="fld"><span>Moneda</span><select id="f-cur" name="cur">
+            <option value="CRC" ${l.cur === "CRC" ? "selected" : ""}>₡ Colones</option>
+            <option value="USD" ${l.cur === "USD" ? "selected" : ""}>$ Dólares</option>
+            <option value="%" ${l.cur === "%" ? "selected" : ""}>% del ingreso</option>
+          </select></label>
+        </div>
+        <div class="preview" id="f-preview"></div>
+        <div class="fld"><span>Cuándo</span>${radios("q", [[1, "1ª quincena"], [2, "2ª quincena"], [3, "Cada quincena"], [0, "Una vez al mes"]], l.q)}</div>
+        <label class="fld" data-only="gasto"><span>Grupo</span><select id="f-group" name="group">
+          ${GROUPS.filter(([g]) => g !== "Ahorro").map(([g]) => `<option ${groupOf(l.groupRaw, l.type) === g ? "selected" : ""}>${g}</option>`).join("")}
+        </select></label>
+        <div class="fld"><span>Termina (opcional)</span><div class="fld-row">
+          <select id="f-um" name="um" aria-label="Mes"><option value="">Sin fecha</option>${MONTHS.map((m, i) => `<option value="${String(i + 1).padStart(2, "0")}" ${um === String(i + 1).padStart(2, "0") ? "selected" : ""}>${m}</option>`).join("")}</select>
+          <select id="f-uy" name="uy" aria-label="Año">${years.map((y) => `<option ${String(y) === (uy || String(year)) ? "selected" : ""}>${y}</option>`).join("")}</select>
+        </div></div>
+        <label class="fld"><span>Notas</span><textarea id="f-notes" name="notes">${esc(l.notes)}</textarea></label>
+        ${state.saveError ? `<p class="error">${esc(state.saveError)}</p>` : ""}
+        <div class="actions">
+          ${isNew ? "" : `<button class="btn danger ${state.confirmDelete ? "sure" : ""}" type="button" data-action="delete" ${state.saving ? "disabled" : ""}>${state.confirmDelete ? "Sí, borrar" : "Borrar"}</button>`}
+          <span class="spacer"></span>
+          <button class="btn secondary" type="button" data-action="close">Cancelar</button>
+          <button class="btn" type="submit" ${state.saving ? "disabled" : ""}>${state.saving ? "Guardando…" : "Guardar"}</button>
+        </div>
+      </form>
+    </div>`;
+    syncForm();
+  }
+
+  function rateSheet() {
+    return `<div class="scrim" data-action="close">
+      <form class="sheet" data-sheet="rate" role="dialog" aria-modal="true" aria-label="Tipo de cambio">
+        <h2>Tipo de cambio</h2>
+        <p class="hint">Convierte las líneas en colones a dólares y viceversa.</p>
+        <label class="fld"><span>Colones por dólar</span><input id="f-rate" name="rate" inputmode="decimal" required value="${esc(state.data.rate)}"></label>
+        ${state.saveError ? `<p class="error">${esc(state.saveError)}</p>` : ""}
+        <div class="actions"><span class="spacer"></span>
+          <button class="btn secondary" type="button" data-action="close">Cancelar</button>
+          <button class="btn" type="submit" ${state.saving ? "disabled" : ""}>${state.saving ? "Guardando…" : "Guardar"}</button>
+        </div>
+      </form>
+    </div>`;
+  }
+
+  // Shows only the fields that apply to the chosen type, and a live conversion.
+  function syncForm() {
+    const form = $('#bModal form[data-sheet="line"]');
+    if (!form) return;
+    const type = (form.querySelector('input[name="type"]:checked') || {}).value || "Gasto";
+    form.querySelectorAll('[data-only="gasto"]').forEach((el) => { el.hidden = type !== "Gasto"; });
+    const pctOpt = form.querySelector('#f-cur option[value="%"]');
+    pctOpt.disabled = type !== "Deducción";
+    if (pctOpt.disabled && form.elements.cur.value === "%") form.elements.cur.value = "USD";
+    form.elements.uy.disabled = !form.elements.um.value;
+    const amount = parseAmount(form.elements.amount.value);
+    const cur = form.elements.cur.value;
+    const rate = state.data.rate;
+    let text = "";
+    if (amount && cur === "%") {
+      const gross = compute(state.data).gross;
+      text = `≈ <b>${esc(money((gross * amount) / 100, "USD"))}</b> · <b>${esc(money((gross * amount) / 100, "CRC"))}</b> al mes`;
+    } else if (amount) {
+      const usd = toUsd(amount, cur, rate);
+      text = `≈ <b>${esc(money(usd, cur === "CRC" ? "USD" : "CRC"))}</b> al tipo de cambio de ₡${esc(rate.toLocaleString("en-US"))}`;
+      if (form.elements.q.value === "3") text += ` · al mes <b>${esc(money(usd * 2, cur))}</b>`;
+    }
+    $("#f-preview").innerHTML = text;
+  }
+
+  function closeModal() { state.editing = null; state.rateEditing = false; state.confirmDelete = false; state.saveError = ""; renderModal(); }
+
+  async function call(tool, args) { return state.mcp.callTool(SERVER, tool, { spreadsheetId: SHEET_ID, ...args }, { cache: false }); }
+  async function refreshAfterWrite() { try { await state.mcp.invalidate(SERVER, "get_values"); } catch { /* the 3-minute refresh picks it up */ } }
+
+  async function saveLine(form) {
+    if (state.saving) return;
+    const f = new FormData(form);
+    const type = f.get("type") || "Gasto";
+    const name = String(f.get("name") || "").trim();
+    const amount = parseAmount(f.get("amount"));
+    if (!name) { state.saveError = "Escribe el concepto."; renderModal(); return; }
+    if (!amount) { state.saveError = "Escribe un monto mayor que cero."; renderModal(); return; }
+    const q = Number(f.get("q") || 0);
+    const group = type === "Gasto" ? String(f.get("group") || "Otros") : type === "Ahorro" ? "Ahorro" : "";
+    // The apostrophe keeps Sheets from turning MM/YYYY into a date.
+    const until = f.get("um") ? `'${f.get("um")}/${f.get("uy")}` : "";
+    const cur = f.get("cur") || "USD";
+    const rowValues = [type, name, amount, cur, q === 3 ? "Ambas" : q || "", group, until, String(f.get("notes") || "").trim()];
+    state.saving = true; state.saveError = ""; renderModal();
+    try {
+      let row;
+      if (state.editing === "new") {
+        // Reuse the first empty row (a deleted line leaves one), else the next row after the last.
+        const col = valuesOf(await call("get_values", { range: `${TAB}!A:B` }));
+        row = col.length + 1;
+        for (let i = 1; i < col.length; i++) if (!String((col[i] || [])[0] ?? "").trim() && !String((col[i] || [])[1] ?? "").trim()) { row = i + 1; break; }
+      } else {
+        const l = state.data.lines.find((x) => x.row === state.editing);
+        const check = valuesOf(await call("get_values", { range: `${TAB}!A${l.row}:B${l.row}` }));
+        const [t, n] = check[0] || [];
+        if (normType(t) !== l.type || String(n ?? "").trim() !== l.name) throw new Error("La hoja cambió. Cierra, espera que se actualice e intenta de nuevo.");
+        row = l.row;
+      }
+      await call("update_values", { range: `${TAB}!A${row}:H${row}`, values: [rowValues] });
+      state.saving = false; state.editing = null; state.confirmDelete = false;
+      renderModal();
+      await refreshAfterWrite();
+    } catch (e) {
+      state.saving = false;
+      state.saveError = (e && e.message && !e.code) ? e.message : "No se pudo guardar. Intenta de nuevo.";
+      renderModal();
+    }
+  }
+
+  async function deleteLine() {
+    const l = state.data.lines.find((x) => x.row === state.editing);
+    if (!l || state.saving) return;
+    if (!state.confirmDelete) { state.confirmDelete = true; renderModal(); return; }
+    state.saving = true; state.saveError = ""; renderModal();
+    try {
+      const check = valuesOf(await call("get_values", { range: `${TAB}!A${l.row}:B${l.row}` }));
+      const [t, n] = check[0] || [];
+      if (normType(t) !== l.type || String(n ?? "").trim() !== l.name) throw new Error("La hoja cambió. Cierra, espera que se actualice e intenta de nuevo.");
+      await call("update_values", { range: `${TAB}!A${l.row}:H${l.row}`, values: [["", "", "", "", "", "", "", ""]] });
+      state.data.lines = state.data.lines.filter((x) => x !== l);
+      state.saving = false; closeModal(); render();
+      await refreshAfterWrite();
+    } catch (e) {
+      state.saving = false; state.confirmDelete = false;
+      state.saveError = (e && e.message && !e.code) ? e.message : "No se pudo borrar. Intenta de nuevo.";
+      renderModal();
+    }
+  }
+
+  async function saveRate(form) {
+    if (state.saving) return;
+    const rate = parseAmount(new FormData(form).get("rate"));
+    if (!rate) { state.saveError = "Escribe un tipo de cambio válido."; renderModal(); return; }
+    state.saving = true; state.saveError = ""; renderModal();
+    try {
+      const head = valuesOf(await call("get_values", { range: `${TAB}!J1` }));
+      if (String((head[0] || [])[0] ?? "").trim() !== RATE_HEADER) throw new Error(`No encontré ${RATE_HEADER} en J1 de la pestaña ${TAB}.`);
+      await call("update_values", { range: `${TAB}!J2`, values: [[rate]] });
+      state.data.rate = rate;
+      state.saving = false; closeModal(); render();
+      await refreshAfterWrite();
+    } catch (e) {
+      state.saving = false;
+      state.saveError = (e && e.message && !e.code) ? e.message : "No se pudo guardar. Intenta de nuevo.";
+      renderModal();
+    }
+  }
+
+  // ---------- Live data ----------
+  let unwatch = null;
+  function watchSheet(mcp) {
+    if (unwatch) { try { unwatch(); } catch { /* already stopped */ } }
+    unwatch = mcp.watchTool(SERVER, "get_values", { spreadsheetId: SHEET_ID, range: RANGE }, (ev) => {
+      if (ev.type === "data") {
+        try { state.data = build(valuesOf(ev.result)); state.error = null; }
+        catch (e) { state.error = e; state.data = null; }
+      } else { state.error = ev.error; if (ev.error && ["needs_reauth", "server_not_connected", "blocked_by_policy", "approval_required"].includes(ev.error.code)) state.data = null; }
+      if (!state.saving) render();
+    }, { cache: { staleTime: 0, gcTime: 7 * 24 * 3600 * 1000 }, refetchInterval: 180000 });
+  }
+  // Only callTool can ask for consent; the watch picks the data up afterwards.
+  async function connect() {
+    if (!state.mcp) return;
+    try {
+      await state.mcp.callTool(SERVER, "get_values", { spreadsheetId: SHEET_ID, range: `${TAB}!A1:A1` }, { cache: false });
+      state.error = null; watchSheet(state.mcp);
+    } catch (e) { state.error = e; render(); }
+  }
+
+  // ---------- Events ----------
+  const tip = $("#bTip");
+  function showTip(el) {
+    const r = el.getBoundingClientRect();
+    tip.textContent = el.dataset.tip; tip.hidden = false;
+    const x = Math.min(window.innerWidth - 90, Math.max(90, r.left + r.width / 2));
+    tip.style.left = x + "px"; tip.style.top = r.top + "px";
+  }
+  const mine = (e) => e.target && e.target.closest && e.target.closest("#budgetRoot");
+  document.addEventListener("pointerover", (e) => { if (!mine(e)) { tip.hidden = true; return; } const s = e.target.closest("[data-tip]"); if (s) showTip(s); else tip.hidden = true; });
+  document.addEventListener("focusin", (e) => { const s = e.target.closest("[data-tip]"); if (s) showTip(s); else tip.hidden = true; });
+  document.addEventListener("scroll", () => { tip.hidden = true; }, { passive: true });
+
+  document.addEventListener("click", (e) => {
+    if (!mine(e)) return;
+    const cur = e.target.closest("[data-cur]");
+    if (cur) { state.cur = cur.dataset.cur; try { localStorage.setItem("presupuesto:moneda", state.cur); } catch { /* storage unavailable */ } render(); return; }
+    const s = e.target.closest("[data-tip]");
+    if (s) { showTip(s); return; }
+    const qb = e.target.closest("[data-q]");
+    if (qb) { state.q = +qb.dataset.q; render(); return; }
+    const fold = e.target.closest("[data-fold]");
+    if (fold) { const id = fold.dataset.fold; setClosed(id, !isClosed(id)); saveClosed(); render(); return; }
+    const all = e.target.closest("[data-fold-all]");
+    if (all && state.data) {
+      compute(state.data).groups.forEach((g) => setClosed(g.g, all.dataset.foldAll === "close"));
+      saveClosed(); render(); return;
+    }
+    const ed = e.target.closest("[data-edit]");
+    if (ed && state.data) { state.editing = +ed.dataset.edit; state.saveError = ""; state.confirmDelete = false; renderModal(); return; }
+    const close = e.target.closest('[data-action="close"]');
+    if (close && (e.target === close || close.tagName === "BUTTON") && !state.saving) { closeModal(); return; }
+    const act = e.target.closest("[data-action]");
+    if (!act) return;
+    const a = act.dataset.action;
+    if (a === "new" && state.data) { state.editing = "new"; state.saveError = ""; renderModal(); }
+    if (a === "rate" && state.data) { state.rateEditing = true; state.saveError = ""; renderModal(); }
+    if (a === "delete") deleteLine();
+    if (a === "connect") connect();
+  });
+  document.addEventListener("input", (e) => { if (e.target.closest('form[data-sheet="line"]')) syncForm(); });
+  document.addEventListener("change", (e) => { if (e.target.closest('form[data-sheet="line"]')) syncForm(); });
+  document.addEventListener("submit", (e) => {
+    if (!mine(e)) return;
+    e.preventDefault();
+    if (e.target.dataset.sheet === "rate") saveRate(e.target); else saveLine(e.target);
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (state.editing || state.rateEditing) && !state.saving) closeModal(); });
+
+  // The app calls show() when the Presupuesto section opens; the sheet is read from then on.
+  let started = false;
+  window.__astroBudget = {
+    show() {
+      render();
+      if (started) return;
+      started = true;
+      const use = window.claude && window.claude.use ? window.claude.use("mcp") : Promise.resolve(null);
+      use.then((mcp) => { state.mcp = mcp; if (mcp) watchSheet(mcp); else render(); }).catch(() => { state.mcp = null; render(); });
+    },
+  };
+})();
+</script>
 
 <script>
 (() => {
@@ -464,7 +1258,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
   const familyById = (id) => CARD_FAMILIES.find((f) => f.id === id);
 
   const state = {
-    tab: ["pending", "all", "payments", "reconcile"].includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "pending"),
+    tab: ["pending", "all", "payments", "reconcile", "budget"].includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "pending"),
     period: ["next", "following", "previous", "all"].includes(store.get("period2", "")) ? store.get("period2") : "next",
     brand: "",
     query: "",
@@ -831,6 +1625,14 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
   // ---------- Rendering ----------
   function render() {
     renderChrome();
+    const inBudget = state.tab === "budget";
+    $("#main").hidden = inBudget;
+    $("#budgetRoot").hidden = !inBudget;
+    if (inBudget) {
+      $("#selbar").hidden = true;
+      if (window.__astroBudget) window.__astroBudget.show();
+      return;
+    }
     const main = $("#main");
     if (state.mcp === null) {
       main.innerHTML = notice({ title: "Abre AstroFinance en claude.ai", text: "Esta app lee y escribe tu hoja de Google a través de tu conector Google Sheets, que solo está disponible dentro de claude.ai." });
@@ -854,7 +1656,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
   }
 
   function renderChrome() {
-    document.querySelector(".controls").hidden = state.tab === "reconcile";
+    document.querySelector(".controls").hidden = state.tab === "reconcile" || state.tab === "budget";
     document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === state.tab ? "page" : "false"));
     $("#periods").innerHTML = PERIODS.map((p) => `<button class="chip" type="button" data-period="${p.id}" aria-pressed="${p.id === state.period}">${p.label}</button>`).join("");
     $("#periodLabel").textContent = state.period === "all" ? "Todos los movimientos"
@@ -870,7 +1672,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     const pendingCount = state.txns ? state.txns.filter((t) => !t.paymentId && inPeriod(t)).length : 0;
     for (const badge of [$("#pendingBadge"), $("#menuBadge")]) { badge.hidden = !pendingCount; badge.textContent = pendingCount; }
   }
-  const TAB_NAMES = { pending: "Pendientes", all: "Movimientos", reconcile: "Conciliar", payments: "Pagos" };
+  const TAB_NAMES = { budget: "Presupuesto", pending: "Pendientes", all: "Movimientos", reconcile: "Conciliar", payments: "Pagos" };
 
   // ---------- Hamburger menu ----------
   function setMenu(open) {
