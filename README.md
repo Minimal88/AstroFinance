@@ -116,8 +116,10 @@ same Sheet (copied from the old "Pagos Moto de Dereck" workbook):
 - Dates are stored as `yyyy-mm-dd` text; dates typed by hand are read as
   d/m/yyyy. `DereckPagado` and `TarjetaPagada` are `Sí` or `No`.
 - Tiles show what Dereck has paid, what has been paid to the Mastercard, the
-  difference (money set aside for the card, or what Dereck owes) and the next
-  installment. The card payment for an installment is due on the 5th of the
+  next installment, and "Cuotas adelantadas": how many installments Dereck has
+  paid ahead that sit in Wink. That counter is set by hand in `J2`
+  (header `CuotasAdelantadas` in `J1`); the owner changes it with the − / +
+  buttons. The card payment for an installment is due on the 5th of the
   following month.
 - **Owner**: tapping an installment opens a form to tick "Dereck me pagó" and
   "Pagué la Mastercard" with their dates and notes. It writes columns D:H of

@@ -86,6 +86,11 @@ button { cursor: pointer; }
 .tile .sub { font-size: 0.76rem; color: var(--muted); }
 .tile .sub .soon { color: var(--warn); font-weight: 700; }
 .tile .sub .late { color: var(--danger); font-weight: 700; }
+.counter { display: flex; align-items: center; gap: 12px; }
+.counter .big { font-size: 1.6rem; min-width: 1.2em; text-align: center; }
+.step { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: 1.15rem; font-weight: 700; line-height: 1; }
+.step[disabled] { opacity: 0.45; cursor: default; }
+.tile .sub.late { color: var(--danger); font-weight: 600; }
 .bar { height: 6px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; margin-top: 2px; }
 .bar > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
 
@@ -143,7 +148,9 @@ button.row:active { background: var(--surface-2); }
   const SERVER = "Google Sheets";
   const SHEET_ID = "1jLcS4xf7jNM6OE2nGU5aHX3JThDyL4ud5gVqhvZ13ss";
   const TAB = "MotoDereck";
-  const RANGE = TAB + "!A:H";
+  const RANGE = TAB + "!A:J";
+  // Advance installments Dereck has paid that sit in the Wink account: a counter set by hand in J2.
+  const ADV_HEADER = "CuotasAdelantadas", ADV_CELL = TAB + "!J2";
   // Mastercard payment day (same as the main app).
   const PAY = 5;
   // The exact wrapper the Artifact tool puts around this file. The page republishes itself in this shape.
@@ -155,7 +162,7 @@ button.row:active { background: var(--surface-2); }
   const savedFilter = (() => { try { return localStorage.getItem("moto:filter"); } catch { return null; } })();
   const state = {
     filter: FILTERS.some(([id]) => id === savedFilter) ? savedFilter : "all",
-    live: null, mcp: undefined, liveError: null,
+    live: null, liveAdv: 0, advSaving: false, advError: "", mcp: undefined, liveError: null,
     canPublish: true, publishing: false, publishError: "",
     editing: null, saving: false, saveError: "",
   };
@@ -248,10 +255,17 @@ button.row:active { background: var(--surface-2); }
     out.sort((a, b) => a.n - b.n);
     return out;
   }
+  function readAdvance(values) {
+    const i = values.length ? values[0].map((h) => String(h).trim()).indexOf(ADV_HEADER) : -1;
+    if (i < 0) return 0;
+    const n = parseInt(String((values[1] && values[1][i]) ?? "").trim(), 10);
+    return n > 0 ? n : 0;
+  }
   const CONSENT = ["approval_required", "not_in_manifest", "consent_required"];
   // Row numbers are only for writing; they never go into what Dereck sees.
   const publicView = (list) => list.map(({ row, ...c }) => c);
   const sameCuotas = (a, b) => JSON.stringify(publicView(a)) === JSON.stringify(publicView(b));
+  function currentAdvance() { return state.live ? state.liveAdv : (snapshot && snapshot.adelantadas) || 0; }
 
   // ---------- Rendering ----------
   function current() { return state.live ?? (snapshot ? snapshot.cuotas : null); }
@@ -296,7 +310,7 @@ button.row:active { background: var(--surface-2); }
     const all = sum(cuotas);
     const fromDereck = cuotas.filter((c) => c.dereck), toCard = cuotas.filter((c) => c.card);
     const pct = (part) => (all ? Math.round((sum(part) / all) * 100) : 0);
-    const held = sum(fromDereck) - sum(toCard);
+    const adv = currentAdvance();
     const lastDereck = fromDereck.map((c) => c.dereckDate).filter(Boolean).sort().pop();
     const lastCard = toCard.map((c) => c.cardDate).filter(Boolean).sort().pop();
     const nextD = cuotas.find((c) => !c.dereck);
@@ -325,8 +339,14 @@ button.row:active { background: var(--surface-2); }
         <span class="sub">${esc(money(nextD.amount))} · se cobra ${esc(whenText(nextD.date))}</span>` : `<span class="big">Todo pagado</span>`}
       </div>
       <div class="tile">
-        <span class="label">${held >= 0 ? "Guardado para la tarjeta" : esc(VIEWER) + " debe"}</span>
-        <span class="big num">${esc(money(Math.abs(held)))}</span>
+        <span class="label">Cuotas adelantadas</span>
+        <div class="counter">
+          ${isOwner() ? `<button class="step" type="button" data-adv="-1" aria-label="Una cuota adelantada menos" ${adv <= 0 || state.advSaving ? "disabled" : ""}>−</button>` : ""}
+          <span class="big num">${adv}</span>
+          ${isOwner() ? `<button class="step" type="button" data-adv="1" aria-label="Una cuota adelantada más" ${state.advSaving ? "disabled" : ""}>+</button>` : ""}
+        </div>
+        <span class="sub">Guardadas en Wink${adv && cuotas.length ? " · " + esc(money(adv * cuotas[0].amount)) : ""}</span>
+        ${state.advError ? `<span class="sub late">${esc(state.advError)}</span>` : ""}
         <span class="sub">${nextC ? `Próximo pago de tarjeta: cuota ${nextC.n}, vence <span class="${cCls}">${esc(fmtDate(cDue))}</span>` : "La tarjeta está al día"}</span>
       </div>
     </section>`;
@@ -367,7 +387,7 @@ button.row:active { background: var(--surface-2); }
       if (state.publishError) return `<div class="notice"><p>${esc(state.publishError)}</p></div>`;
       return "";
     }
-    if (snapshot && sameCuotas(state.live, snapshot.cuotas)) return "";
+    if (snapshot && sameCuotas(state.live, snapshot.cuotas) && state.liveAdv === (snapshot.adelantadas || 0)) return "";
     return `<div class="notice">
       <h3>${snapshot ? "Hay cambios que " + esc(VIEWER) + " aún no ve" : "Esta página está vacía para " + esc(VIEWER)}</h3>
       <p>Lo que ves sale de tu hoja. ${esc(VIEWER)} solo ve la última versión publicada, sin acceso a la hoja.</p>
@@ -423,6 +443,20 @@ button.row:active { background: var(--surface-2); }
     box.classList.toggle("empty", !input.value);
   }
 
+  async function stepAdvance(delta) {
+    if (!state.live || state.advSaving) return;
+    const next = Math.max(0, state.liveAdv + delta);
+    state.advSaving = true; state.advError = ""; render();
+    try {
+      await state.mcp.callTool(SERVER, "update_values", { spreadsheetId: SHEET_ID, range: ADV_CELL, values: [[next]] }, { cache: false });
+      state.liveAdv = next;
+      try { await state.mcp.invalidate(SERVER, "get_values"); } catch { /* the 3-minute refresh picks it up */ }
+    } catch (e) {
+      state.advError = "No se pudo guardar el contador.";
+    }
+    state.advSaving = false; render();
+  }
+
   async function save(form) {
     const c = state.live && state.live.find((x) => x.n === state.editing);
     if (!c || state.saving) return;
@@ -460,7 +494,7 @@ button.row:active { background: var(--surface-2); }
     // Errors here usually mean this viewer has no access to the sheet: keep showing the published copy.
     unwatch = mcp.watchTool(SERVER, "get_values", { spreadsheetId: SHEET_ID, range: RANGE }, (ev) => {
       if (ev.type === "data") {
-        try { state.live = buildCuotas(valuesOf(ev.result)); state.liveError = null; }
+        try { const values = valuesOf(ev.result); state.live = buildCuotas(values); state.liveAdv = readAdvance(values); state.liveError = null; }
         catch (e) { state.liveError = e; }
       } else { state.liveError = ev.error; state.live = null; }
       if (!state.saving) render();
@@ -468,7 +502,7 @@ button.row:active { background: var(--surface-2); }
   }
 
   function documentFor(cuotas) {
-    const data = JSON.stringify({ updatedAt: Date.now(), cuotas: publicView(cuotas) }).replace(/</g, "\\u003c");
+    const data = JSON.stringify({ updatedAt: Date.now(), cuotas: publicView(cuotas), adelantadas: state.liveAdv }).replace(/</g, "\\u003c");
     const head = [...document.querySelectorAll('meta[name="claude:viewport-fit-sides"], link[rel="preconnect"], link[rel="stylesheet"]')]
       .map((el) => el.outerHTML).join("\n");
     return SKELETON_OPEN
@@ -516,6 +550,8 @@ button.row:active { background: var(--surface-2); }
   document.addEventListener("click", (e) => {
     const f = e.target.closest("[data-filter]");
     if (f) { state.filter = f.dataset.filter; try { localStorage.setItem("moto:filter", state.filter); } catch { /* storage unavailable */ } render(); return; }
+    const st = e.target.closest("[data-adv]");
+    if (st) { stepAdvance(+st.dataset.adv); return; }
     const ed = e.target.closest("[data-edit]");
     if (ed && isOwner()) { state.editing = +ed.dataset.edit; state.saveError = ""; renderModal(); return; }
     const close = e.target.closest('[data-action="close"]');
