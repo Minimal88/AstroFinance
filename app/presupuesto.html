@@ -229,7 +229,7 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
 
   const saved = (k, d) => { try { return localStorage.getItem(k) || d; } catch { return d; } };
   const state = {
-    cur: saved("presupuesto:cur", "USD") === "CRC" ? "CRC" : "USD",
+    cur: saved("presupuesto:moneda", "CRC") === "USD" ? "USD" : "CRC",
     data: null, error: null, mcp: undefined,
     editing: null, saving: false, saveError: "", confirmDelete: false,
     rateEditing: false,
@@ -380,8 +380,8 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
           <div class="sub">${d ? `<button class="rate" type="button" data-action="rate" ${owner ? "" : "disabled"} aria-label="Cambiar tipo de cambio">₡${esc(d.rate.toLocaleString("en-US"))} por dólar</button> · en vivo · ${esc(fmtStamp(d.at))}` : "Mensual, en dólares y colones"}</div>
         </div>
         <div class="seg" role="group" aria-label="Moneda">
-          <button type="button" data-cur="USD" aria-pressed="${state.cur === "USD"}" aria-label="Dólares">$</button>
           <button type="button" data-cur="CRC" aria-pressed="${state.cur === "CRC"}" aria-label="Colones">₡</button>
+          <button type="button" data-cur="USD" aria-pressed="${state.cur === "USD"}" aria-label="Dólares">$</button>
         </div>
       </div></header>
       <main class="gutter">`;
@@ -515,7 +515,7 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     if (state.rateEditing && state.data) { host.innerHTML = rateSheet(); return; }
     if (!state.editing || !state.data) { host.innerHTML = ""; return; }
     const isNew = state.editing === "new";
-    const l = isNew ? { type: "Gasto", name: "", amount: "", cur: "USD", q: 1, groupRaw: "Casa", until: "", notes: "" }
+    const l = isNew ? { type: "Gasto", name: "", amount: "", cur: "CRC", q: 1, groupRaw: "Casa", until: "", notes: "" }
       : state.data.lines.find((x) => x.row === state.editing);
     if (!l) { host.innerHTML = ""; return; }
     const [uy, um] = l.until ? l.until.split("-") : ["", ""];
@@ -532,8 +532,8 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
         <div class="fld-row">
           <label class="fld"><span>Monto</span><input id="f-amount" name="amount" inputmode="decimal" required value="${esc(l.amount)}"></label>
           <label class="fld"><span>Moneda</span><select id="f-cur" name="cur">
-            <option value="USD" ${l.cur === "USD" ? "selected" : ""}>$ Dólares</option>
             <option value="CRC" ${l.cur === "CRC" ? "selected" : ""}>₡ Colones</option>
+            <option value="USD" ${l.cur === "USD" ? "selected" : ""}>$ Dólares</option>
             <option value="%" ${l.cur === "%" ? "selected" : ""}>% del ingreso</option>
           </select></label>
         </div>
@@ -718,7 +718,7 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
 
   document.addEventListener("click", (e) => {
     const cur = e.target.closest("[data-cur]");
-    if (cur) { state.cur = cur.dataset.cur; try { localStorage.setItem("presupuesto:cur", state.cur); } catch { /* storage unavailable */ } render(); return; }
+    if (cur) { state.cur = cur.dataset.cur; try { localStorage.setItem("presupuesto:moneda", state.cur); } catch { /* storage unavailable */ } render(); return; }
     const s = e.target.closest("[data-tip]");
     if (s) { showTip(s); return; }
     const ed = e.target.closest("[data-edit]");
