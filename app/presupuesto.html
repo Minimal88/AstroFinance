@@ -25,6 +25,7 @@
   --danger-soft: #fbe3e4;
   --scrim: rgba(10, 14, 22, 0.45);
   --band: rgba(23, 130, 74, 0.16);
+  --node-ink: #111526;
   /* One fixed color per spending group (validated categorical order). */
   --g-casa: #2a78d6;
   --g-transporte: #eb6834;
@@ -128,20 +129,65 @@ main { display: flex; flex-direction: column; gap: 14px; padding-top: 16px; }
 .legend .v b { color: var(--fg); font-weight: 600; }
 .tip { position: fixed; z-index: 50; pointer-events: none; background: var(--fg); color: var(--bg); font-size: 0.8rem; font-weight: 600; padding: 6px 9px; border-radius: 8px; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); }
 
-/* Paydays */
-.paydays { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-@media (max-width: 360px) { .paydays { grid-template-columns: minmax(0, 1fr); } }
-.payday { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.payday .when { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
-.payday .left { font-family: var(--font-display); font-weight: 700; font-size: 1.45rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.payday .left.neg { color: var(--danger); }
-.payday .bar { height: 6px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
-.payday .bar > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
-.payday .bar > i.full { background: var(--danger); }
-.payday .rows { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; font-size: 0.8rem; color: var(--muted); }
-.payday .rows span:nth-child(even) { font-family: var(--font-num); text-align: right; color: var(--fg); }
-.payday.tight { border-color: var(--warn); }
-.payday .flag { align-self: flex-start; font-size: 0.72rem; font-weight: 700; color: var(--warn); background: var(--warn-soft); border-radius: 999px; padding: 2px 8px; }
+/* Paydays as a flow: what comes in, then each expense in order, with the running balance */
+.qtabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.qtab { display: flex; flex-direction: column; gap: 4px; text-align: left; min-width: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); }
+.qtab .when { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; color: var(--muted); }
+.qtab .left { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.qtab .left small { font-family: var(--font-body); font-size: 0.74rem; font-weight: 600; color: var(--muted); }
+.qtab .left.neg { color: var(--danger); }
+.qtab[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.qtab[aria-pressed="true"] .when { color: var(--accent); }
+.qtab .flag { align-self: flex-start; font-size: 0.68rem; font-weight: 700; color: var(--warn); background: var(--warn-soft); border-radius: 999px; padding: 1px 7px; }
+.drain { display: flex; gap: 2px; height: 14px; border-radius: 6px; overflow: hidden; }
+.drain .s { display: block; height: 100%; min-width: 3px; }
+.drain .s.free { background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, var(--line) 6px 8px); }
+.flow { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.flow-in, .flow-out { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; padding: 10px 0; }
+.flow-in .label, .flow-out .label { font-weight: 700; }
+.flow-in .label small, .flow-out .label small { display: block; font-weight: 500; font-size: 0.78rem; color: var(--muted); }
+.flow-in .amt, .flow-out .amt { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; font-variant-numeric: tabular-nums; text-align: right; }
+.flow-in .amt { color: var(--ok); }
+.flow-out .amt.neg { color: var(--danger); }
+.flow-icon { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; }
+.flow-in .flow-icon { background: var(--ok-soft); color: var(--ok); }
+.flow-out .flow-icon { background: var(--accent-soft); color: var(--accent); }
+.flow-out.neg .flow-icon { background: var(--danger-soft); color: var(--danger); }
+.start-mark { display: flex; align-items: center; gap: 10px; color: var(--accent); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; padding: 4px 0 6px; }
+.start-mark::before, .start-mark::after { content: ""; flex: 1; border-top: 1.5px dashed var(--accent); opacity: 0.6; }
+.step { position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 2px 10px; padding: 9px 0; width: 100%; text-align: left; border: 0; background: none; }
+.step:hover { background: var(--surface-2); border-radius: 10px; }
+/* The rail: a line through every step, with a numbered node in the group's color. */
+.step::before { content: ""; position: absolute; left: 13px; top: 0; bottom: 0; width: 2px; background: var(--line); }
+.step .node { position: relative; z-index: 1; grid-row: 1 / span 2; align-self: start; width: 24px; height: 24px; margin-left: 2px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-num); font-size: 0.7rem; font-weight: 700; color: var(--node-ink); box-shadow: 0 0 0 3px var(--surface); }
+.step .what { font-weight: 700; font-size: 0.92rem; overflow-wrap: anywhere; }
+.step .what small { font-weight: 500; color: var(--muted); font-size: 0.76rem; }
+.step .out { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; font-size: 0.92rem; }
+.step .bal { grid-column: 2 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 0.76rem; color: var(--muted); }
+.step .bal .meter { height: 5px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.step .bal .meter > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.step .bal b { font-family: var(--font-num); font-weight: 600; color: var(--fg); }
+.step.over .bal b { color: var(--danger); }
+.step.over .node { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--danger); }
+.flow-note { font-size: 0.78rem; color: var(--muted); margin: 0; }
+
+/* Section markers between income and spending */
+.section-mark { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 2px 0; border-top: 2px solid var(--fg); margin-top: 6px; }
+.section-mark h2 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+.section-mark .side { display: flex; align-items: baseline; gap: 12px; }
+.section-mark .tot { font-family: var(--font-num); font-weight: 600; }
+.linkish { border: 0; background: none; padding: 4px 0; color: var(--accent); font-weight: 700; font-size: 0.82rem; }
+
+/* Collapsible cards */
+.fold { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; background: none; padding: 0; text-align: left; }
+.fold h2 { display: flex; align-items: center; flex-wrap: wrap; min-width: 0; }
+.fold .group-head { flex: none; }
+.fold .chev { flex: none; color: var(--muted); transition: transform 0.15s; }
+.card.closed .fold .chev { transform: rotate(-90deg); }
+.card.closed .lines, .card.closed .mini { display: none; }
+.card.closed { gap: 0; }
+.fold .count { font-size: 0.76rem; font-weight: 500; color: var(--muted); margin-left: 8px; font-family: var(--font-body); }
+@media (prefers-reduced-motion: reduce) { .fold .chev { transition: none; } }
 
 /* Line lists */
 .lines { display: flex; flex-direction: column; margin: 0 -14px -14px; }
@@ -233,7 +279,10 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     data: null, error: null, mcp: undefined,
     editing: null, saving: false, saveError: "", confirmDelete: false,
     rateEditing: false,
+    q: new Date().getDate() <= 15 ? 1 : 2,
+    closed: new Set((() => { try { return JSON.parse(localStorage.getItem("presupuesto:cerradas") || "[]"); } catch { return []; } })()),
   };
+  function saveClosed() { try { localStorage.setItem("presupuesto:cerradas", JSON.stringify([...state.closed])); } catch { /* storage unavailable */ } }
 
   // ---------- Helpers ----------
   const $ = (sel) => document.querySelector(sel);
@@ -402,7 +451,7 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
       return;
     }
     const c = compute(d);
-    html += hero(c, d) + split(c) + paydays(c) + income(c) + c.groups.map((g) => groupCard(g, c)).join("") + ended(c);
+    html += hero(c, d) + paydays(c) + split(c) + income(c) + spendingMark(c) + c.groups.map((g) => groupCard(g, c)).join("") + ended(c);
     html += `<button class="add" type="button" data-action="new"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Agregar línea</button>`;
     html += `<p class="foot">Toca cualquier línea para cambiarla. Todo se guarda en la pestaña ${TAB} de tu hoja.</p></main>`;
     $("#app").innerHTML = html;
@@ -453,18 +502,53 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     </section>`;
   }
 
+  // One payday as a flow: the net pay comes in, then each line that falls on it, in the
+  // order of the sheet's rows, with what is left after each one.
   function paydays(c) {
     const tight = c.qs[0].left !== c.qs[1].left ? (c.qs[0].left < c.qs[1].left ? 1 : 2) : 0;
-    return `<section class="paydays" aria-label="Por quincena">${c.qs.map((q) => {
-      const used = Math.min(100, pct(q.out, q.income));
-      return `<div class="payday ${tight === q.q ? "tight" : ""}">
+    const tabs = c.qs.map((q) => `<button class="qtab" type="button" data-q="${q.q}" aria-pressed="${state.q === q.q}">
         <span class="when">${q.q === 1 ? "1ª" : "2ª"} quincena</span>
-        <span class="left ${q.left < 0 ? "neg" : ""}">${esc(money(q.left))}</span>
-        <div class="bar" aria-hidden="true"><i class="${q.out > q.income ? "full" : ""}" style="width:${used}%"></i></div>
-        <div class="rows"><span>Entra</span><span>${esc(money(q.income))}</span><span>Sale</span><span>${esc(money(q.out))}</span></div>
+        <span class="left ${q.left < 0 ? "neg" : ""}">${esc(money(q.left))} <small>libres</small></span>
         ${tight === q.q ? `<span class="flag">La más justa</span>` : ""}
-      </div>`;
-    }).join("")}</section>`;
+      </button>`).join("");
+    const q = c.qs[state.q - 1];
+    const steps = c.spend.filter((l) => shareOn(l, q.q) > 0).sort((a, b) => a.row - b.row);
+    let bal = q.income;
+    const base = Math.max(q.income, q.out) || 1;
+    const drain = steps.map((l) => `<span class="s" tabindex="0" data-tip="${esc(`${l.name}: ${money(shareOn(l, q.q))}`)}" style="flex:${shareOn(l, q.q) / base} 1 0;background:${groupColor(l.group)}"></span>`).join("")
+      + (q.left > 0 ? `<span class="s free" tabindex="0" data-tip="${esc(`Libre: ${money(q.left)}`)}" style="flex:${q.left / base} 1 0"></span>` : "");
+    const gross = sumOn(c.incomes, q.q), ded = sumOn(c.deductions, q.q);
+    const rows = steps.map((l, i) => {
+      const out = shareOn(l, q.q);
+      bal -= out;
+      const fill = q.income > 0 ? Math.max(0, Math.min(100, (bal / q.income) * 100)) : 0;
+      const how = l.q === 3 ? " · cada quincena" : l.q === 0 ? " · la mitad del mensual" : "";
+      return `<button class="step ${bal < 0 ? "over" : ""}" type="button" data-edit="${l.row}">
+        <span class="node" style="background:${groupColor(l.group)}">${i + 1}</span>
+        <span class="what">${esc(l.name)} <small>${esc(l.group)}${how}</small></span>
+        <span class="out">−${esc(money(out))}</span>
+        <span class="bal"><span class="meter" aria-hidden="true"><i style="width:${fill}%"></i></span><span>${bal < 0 ? "faltan" : "quedan"} <b>${esc(money(Math.abs(bal)))}</b></span></span>
+      </button>`;
+    }).join("");
+    const inIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7 7 7-7"/></svg>`;
+    const outIcon = q.left < 0
+      ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/></svg>`
+      : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>`;
+    return `<section class="card" aria-label="Tus quincenas">
+      <div class="card-head"><h2>Tus quincenas</h2><span class="meta">en el orden de la hoja</span></div>
+      <div class="qtabs" role="group" aria-label="Elegir quincena">${tabs}</div>
+      <div class="drain" role="img" aria-label="Cómo se va la ${q.q === 1 ? "1ª" : "2ª"} quincena">${drain}</div>
+      <div class="flow">
+        <div class="flow-in"><span class="flow-icon">${inIcon}</span>
+          <span class="label">Entra tu pago<small>${ded > 0 ? `Bruto ${esc(money(gross))} − deducciones ${esc(money(ded))}` : "Neto de la quincena"}</small></span>
+          <span class="amt">${esc(money(q.income))}</span></div>
+        <div class="start-mark">Empiezan los gastos</div>
+        ${rows || `<p class="flow-note">No hay gastos en esta quincena.</p>`}
+        <div class="flow-out ${q.left < 0 ? "neg" : ""}"><span class="flow-icon">${outIcon}</span>
+          <span class="label">${q.left < 0 ? "Te faltan" : "Te queda libre"}<small>${steps.length} gasto${steps.length === 1 ? "" : "s"} por ${esc(money(q.out))}</small></span>
+          <span class="amt ${q.left < 0 ? "neg" : ""}">${esc(money(Math.abs(q.left)))}</span></div>
+      </div>
+    </section>`;
   }
 
   function lineRow(l, c, opts = {}) {
@@ -481,11 +565,28 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     </button>`;
   }
 
+  const chev = `<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
+  function foldHead(id, title, total, sub, count) {
+    const open = !state.closed.has(id);
+    return `<button class="fold" type="button" data-fold="${esc(id)}" aria-expanded="${open}">
+        <h2>${title}${count ? `<span class="count">${count}</span>` : ""}</h2>
+        <span class="group-head"><span class="tot">${total}<small>${sub}</small></span>${chev}</span>
+      </button>`;
+  }
+  function spendingMark(c) {
+    const ids = c.groups.map((g) => g.g);
+    const allClosed = ids.length && ids.every((id) => state.closed.has(id));
+    return `<div class="section-mark"><h2>Gastos y ahorro</h2>
+      <span class="side"><span class="tot">${esc(money(c.total))}</span>
+      <button class="linkish" type="button" data-fold-all="${allClosed ? "open" : "close"}">${allClosed ? "Abrir todo" : "Cerrar todo"}</button></span></div>`;
+  }
+
   function income(c) {
     const rows = c.incomes.map((l) => lineRow(l, c, { noShare: true })).join("")
       + c.deductions.map((l) => lineRow(l, c, { minus: true, noShare: true })).join("");
-    return `<section class="card" aria-label="Ingresos">
-      <div class="group-head"><h2>Ingresos</h2><span class="tot num">${esc(money(c.net))}<small>neto al mes</small></span></div>
+    return `<div class="section-mark"><h2>Ingresos</h2></div>
+    <section class="card ${state.closed.has("Ingresos") ? "closed" : ""}" aria-label="Ingresos">
+      ${foldHead("Ingresos", "Tu salario", esc(money(c.net)), "neto al mes", `${c.incomes.length + c.deductions.length} líneas`)}
       <div class="lines">${rows || `<div class="line"><span class="name" style="color:var(--muted)">Agrega tu ingreso con “Agregar línea”.</span></div>`}
         ${Math.abs(c.qs[0].income - c.qs[1].income) < 0.5
           ? `<div class="line total"><span class="name">Neto por quincena</span><span class="amt">${esc(money(c.qs[0].income))}</span></div>`
@@ -496,9 +597,8 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
 
   function groupCard(g, c) {
     const items = [...g.items].sort((a, b) => (a.q || 3) - (b.q || 3) || b.usd - a.usd);
-    return `<section class="card" aria-label="${esc(g.g)}">
-      <div class="group-head"><h2><span class="group-dot" style="background:${groupColor(g.g)}"></span>${esc(g.g)}</h2>
-        <span class="tot">${esc(money(g.usd))}<small>${esc(fmtPct(pct(g.usd, c.net)))} del neto</small></span></div>
+    return `<section class="card ${state.closed.has(g.g) ? "closed" : ""}" aria-label="${esc(g.g)}">
+      ${foldHead(g.g, `<span class="group-dot" style="background:${groupColor(g.g)}"></span>${esc(g.g)}`, esc(money(g.usd)), `${esc(fmtPct(pct(g.usd, c.net)))} del neto`, `${g.items.length} línea${g.items.length === 1 ? "" : "s"}`)}
       <div class="lines">${items.map((l) => lineRow(l, c)).join("")}</div>
     </section>`;
   }
@@ -721,6 +821,15 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     if (cur) { state.cur = cur.dataset.cur; try { localStorage.setItem("presupuesto:moneda", state.cur); } catch { /* storage unavailable */ } render(); return; }
     const s = e.target.closest("[data-tip]");
     if (s) { showTip(s); return; }
+    const qb = e.target.closest("[data-q]");
+    if (qb) { state.q = +qb.dataset.q; render(); return; }
+    const fold = e.target.closest("[data-fold]");
+    if (fold) { const id = fold.dataset.fold; state.closed.has(id) ? state.closed.delete(id) : state.closed.add(id); saveClosed(); render(); return; }
+    const all = e.target.closest("[data-fold-all]");
+    if (all && state.data) {
+      compute(state.data).groups.forEach((g) => (all.dataset.foldAll === "close" ? state.closed.add(g.g) : state.closed.delete(g.g)));
+      saveClosed(); render(); return;
+    }
     const ed = e.target.closest("[data-edit]");
     if (ed && state.data) { state.editing = +ed.dataset.edit; state.saveError = ""; state.confirmDelete = false; renderModal(); return; }
     const close = e.target.closest('[data-action="close"]');

@@ -104,9 +104,12 @@ connector (nobody else sees it, so there is no published copy):
   to "Ya terminaron" and stops counting.
 - `J2` holds the colones per dollar rate and `K2` the goal for what is left
   over (`10-20`, as a % of net income).
-- The page shows what is left each month against that goal, how the net
-  income splits by group, what is left from each payday, income and
-  deductions, and every line by group, in dollars or colones. Tapping a line
+- The page shows what is left each month against that goal, then "Tus
+  quincenas": for the chosen payday, the net pay coming in, a marker where
+  spending starts, and each line that falls on it in the order of the
+  sheet's rows, with what is left after each one. Then how the net income
+  splits by group, income and deductions, and every line by group (each
+  card folds; the page remembers which), in colones or dollars. Tapping a line
   edits it (after checking the row still holds it); "Agregar línea" fills the
   first empty row; deleting clears the row.
 
