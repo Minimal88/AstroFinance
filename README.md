@@ -37,9 +37,9 @@ Google Sheets. The spreadsheet ID can be changed in the app's settings.
 ## Phone app
 
 - **Menu**: the ☰ button in the header opens the sections (Pendientes,
-  Movimientos, Conciliar, Pagos), links to Dereck's and Hannia's Amex pages
-  and Dereck's motorcycle page (open one to publish fresh data to it), and
-  Ajustes.
+  Movimientos, Conciliar, Pagos, Presupuesto), links to
+  Dereck's and Hannia's Amex pages and Dereck's motorcycle page (open one to
+  publish fresh data to it), and Ajustes.
 - **Pendientes**: pending charges grouped by cardholder. A tile per card family
   shows when its next payment is due, the statement total and what is still
   pending; tapping a tile filters to that card.
@@ -80,6 +80,39 @@ Google Sheets. The spreadsheet ID can be changed in the app's settings.
     (±0.01) and date (±3 days).
 
 To change the app, edit the file and republish it to the same artifact.
+
+## Presupuesto (monthly budget)
+
+The Presupuesto section of the phone app (☰ → Presupuesto, or `#budget`) is
+the owner's monthly budget, based on the old "Presupuesto 2026" sheet. Its
+code is the second `<script>` in `app/astrofinance.html` and its styles are
+scoped under `#budgetRoot`. It reads and writes the `Presupuesto` tab of the
+same Sheet, starting the first time the section opens:
+
+| Tipo | Concepto | Monto | Moneda | Quincena | Grupo | Hasta | Notas | | TipoCambio | MetaSaldo |
+|---|---|---|---|---|---|---|---|---|---|---|
+
+- `Tipo` is `Ingreso`, `Deducción`, `Gasto` or `Ahorro`. `Moneda` is `USD`,
+  `CRC` or `%` (deductions only: a percentage of the gross income).
+- `Quincena` is `1` or `2` (that payday only), `Ambas` (the amount comes or
+  goes every payday, so it counts twice a month, like the salary and its
+  deductions from the pay stub) or blank (a monthly amount split between both
+  paydays). `Grupo` is
+  `Casa`, `Transporte`, `Salud`, `Personal` or `Otros`; `Ahorro` lines have
+  their own group.
+- `Hasta` is an optional `MM/YYYY` (the page writes it with a leading `'` so
+  Sheets keeps it as text; a date serial is also read): once that month has passed the line moves
+  to "Ya terminaron" and stops counting.
+- `J2` holds the colones per dollar rate and `K2` the goal for what is left
+  over (`10-20`, as a % of net income).
+- The page shows what is left each month against that goal, then "Tus
+  quincenas": for the chosen payday, the net pay coming in, a marker where
+  spending starts, and each line that falls on it in the order of the
+  sheet's rows, with what is left after each one. Then how the net income
+  splits by group, income and deductions, and every line by group (each
+  card folds, spending groups start folded, and the page remembers changes), in colones or dollars. Tapping a line
+  edits it (after checking the row still holds it); "Agregar línea" fills the
+  first empty row; deleting clears the row.
 
 ## Amex pages for Dereck and Hannia
 
