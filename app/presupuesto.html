@@ -280,9 +280,12 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     editing: null, saving: false, saveError: "", confirmDelete: false,
     rateEditing: false,
     q: new Date().getDate() <= 15 ? 1 : 2,
-    closed: new Set((() => { try { return JSON.parse(localStorage.getItem("presupuesto:cerradas") || "[]"); } catch { return []; } })()),
+    // Cards whose fold differs from the default: spending groups start closed, income starts open.
+    flipped: new Set((() => { try { return JSON.parse(localStorage.getItem("presupuesto:plegado") || "[]"); } catch { return []; } })()),
   };
-  function saveClosed() { try { localStorage.setItem("presupuesto:cerradas", JSON.stringify([...state.closed])); } catch { /* storage unavailable */ } }
+  function saveClosed() { try { localStorage.setItem("presupuesto:plegado", JSON.stringify([...state.flipped])); } catch { /* storage unavailable */ } }
+  const isClosed = (id) => (id !== "Ingresos") !== state.flipped.has(id);
+  function setClosed(id, closed) { if (closed === (id !== "Ingresos")) state.flipped.delete(id); else state.flipped.add(id); }
 
   // ---------- Helpers ----------
   const $ = (sel) => document.querySelector(sel);
@@ -567,7 +570,7 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
 
   const chev = `<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
   function foldHead(id, title, total, sub, count) {
-    const open = !state.closed.has(id);
+    const open = !isClosed(id);
     return `<button class="fold" type="button" data-fold="${esc(id)}" aria-expanded="${open}">
         <h2>${title}${count ? `<span class="count">${count}</span>` : ""}</h2>
         <span class="group-head"><span class="tot">${total}<small>${sub}</small></span>${chev}</span>
@@ -575,7 +578,7 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
   }
   function spendingMark(c) {
     const ids = c.groups.map((g) => g.g);
-    const allClosed = ids.length && ids.every((id) => state.closed.has(id));
+    const allClosed = ids.length && ids.every((id) => isClosed(id));
     return `<div class="section-mark"><h2>Gastos y ahorro</h2>
       <span class="side"><span class="tot">${esc(money(c.total))}</span>
       <button class="linkish" type="button" data-fold-all="${allClosed ? "open" : "close"}">${allClosed ? "Abrir todo" : "Cerrar todo"}</button></span></div>`;
@@ -585,7 +588,7 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     const rows = c.incomes.map((l) => lineRow(l, c, { noShare: true })).join("")
       + c.deductions.map((l) => lineRow(l, c, { minus: true, noShare: true })).join("");
     return `<div class="section-mark"><h2>Ingresos</h2></div>
-    <section class="card ${state.closed.has("Ingresos") ? "closed" : ""}" aria-label="Ingresos">
+    <section class="card ${isClosed("Ingresos") ? "closed" : ""}" aria-label="Ingresos">
       ${foldHead("Ingresos", "Tu salario", esc(money(c.net)), "neto al mes", `${c.incomes.length + c.deductions.length} líneas`)}
       <div class="lines">${rows || `<div class="line"><span class="name" style="color:var(--muted)">Agrega tu ingreso con “Agregar línea”.</span></div>`}
         ${Math.abs(c.qs[0].income - c.qs[1].income) < 0.5
@@ -597,7 +600,7 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
 
   function groupCard(g, c) {
     const items = [...g.items].sort((a, b) => (a.q || 3) - (b.q || 3) || b.usd - a.usd);
-    return `<section class="card ${state.closed.has(g.g) ? "closed" : ""}" aria-label="${esc(g.g)}">
+    return `<section class="card ${isClosed(g.g) ? "closed" : ""}" aria-label="${esc(g.g)}">
       ${foldHead(g.g, `<span class="group-dot" style="background:${groupColor(g.g)}"></span>${esc(g.g)}`, esc(money(g.usd)), `${esc(fmtPct(pct(g.usd, c.net)))} del neto`, `${g.items.length} línea${g.items.length === 1 ? "" : "s"}`)}
       <div class="lines">${items.map((l) => lineRow(l, c)).join("")}</div>
     </section>`;
@@ -824,10 +827,10 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     const qb = e.target.closest("[data-q]");
     if (qb) { state.q = +qb.dataset.q; render(); return; }
     const fold = e.target.closest("[data-fold]");
-    if (fold) { const id = fold.dataset.fold; state.closed.has(id) ? state.closed.delete(id) : state.closed.add(id); saveClosed(); render(); return; }
+    if (fold) { const id = fold.dataset.fold; setClosed(id, !isClosed(id)); saveClosed(); render(); return; }
     const all = e.target.closest("[data-fold-all]");
     if (all && state.data) {
-      compute(state.data).groups.forEach((g) => (all.dataset.foldAll === "close" ? state.closed.add(g.g) : state.closed.delete(g.g)));
+      compute(state.data).groups.forEach((g) => setClosed(g.g, all.dataset.foldAll === "close"));
       saveClosed(); render(); return;
     }
     const ed = e.target.closest("[data-edit]");

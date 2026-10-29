@@ -109,7 +109,7 @@ connector (nobody else sees it, so there is no published copy):
   spending starts, and each line that falls on it in the order of the
   sheet's rows, with what is left after each one. Then how the net income
   splits by group, income and deductions, and every line by group (each
-  card folds; the page remembers which), in colones or dollars. Tapping a line
+  card folds, spending groups start folded, and the page remembers changes), in colones or dollars. Tapping a line
   edits it (after checking the row still holds it); "Agregar línea" fills the
   first empty row; deleting clears the row.
 
