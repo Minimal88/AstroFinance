@@ -48,6 +48,10 @@ Google Sheets. The spreadsheet ID can be changed in the app's settings.
   12th. A statement runs from the day after the previous cutoff through the
   cutoff day. Switch between the next payment, the following statement, the
   previous one, or everything. Both days can be changed in the app's settings.
+- **Batch selection**: press a checkbox and drag up or down to select (or
+  unselect) every row you pass; on a phone you can also hold a row for a moment
+  and then slide. The page scrolls when you reach the top or bottom edge, and
+  Shift-click picks a range on a computer. Works in Pendientes and Movimientos.
 - **Marcar pagado**: creates a row in Payments (or adds to an existing one) and
   writes its PaymentID onto the selected transactions. It re-reads the Sheet
   first so a payment set elsewhere is not overwritten.

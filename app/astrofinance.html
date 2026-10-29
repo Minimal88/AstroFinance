@@ -159,6 +159,13 @@ button { cursor: pointer; }
   padding: 11px 14px; background: none; border: 0; text-align: left;
 }
 .row.selected { background: var(--accent-soft); }
+/* Drag to select: press a checkbox (or hold a row) and slide over others. */
+.row .pick { touch-action: none; cursor: pointer; padding-right: 2px; }
+.row { -webkit-touch-callout: none; }
+body.drag-selecting, body.drag-selecting * { user-select: none; -webkit-user-select: none; cursor: ns-resize; }
+body.drag-selecting .row .body { pointer-events: none; }
+body.drag-selecting .selbar-inner { pointer-events: none; }
+.select-hint { font-size: 0.78rem; color: var(--muted); margin: 10px 2px 0; }
 .row .merchant { font-weight: 600; font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .amount { font-size: 0.95rem; font-weight: 600; text-align: right; }
 .row .meta { font-size: 0.78rem; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; }
@@ -1724,6 +1731,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     if (!list.length) {
       return html + `<div class="empty">${state.query ? "Nada coincide con tu búsqueda." : "No hay nada pendiente en este estado de cuenta."}</div>`;
     }
+    if (!state.selected.size) html += `<p class="select-hint">Para elegir varios, arrastra sobre las casillas o mantén presionado un movimiento y desliza.</p>`;
     for (const [holder, items] of ordered) {
       const collapsed = state.collapsed.has(holder);
       const allSel = items.every((t) => state.selected.has(t.ref));
@@ -2598,6 +2606,7 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     if (e.target.matches("[data-pick]")) {
       const ref = e.target.dataset.pick;
       e.target.checked ? state.selected.add(ref) : state.selected.delete(ref);
+      lastPick = visiblePicks().indexOf(e.target);
       render();
     } else if (e.target.id === "holderFilter") { state.holder = e.target.value; render(); }
     else if (e.target.id === "statusFilter") { state.status = e.target.value; render(); }
@@ -2609,6 +2618,125 @@ a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
     }
     else if (e.target.id === "reconFamily" && state.recon) { state.recon.family = e.target.value; render(); }
   });
+  // ---------- Drag to select ----------
+  // Press a checkbox and slide up or down: every row between where you started and
+  // where you are takes the starting row's new state. Holding a row for a moment does
+  // the same (handy on a phone). Shift-click selects a range on a computer.
+  const LONG_PRESS_MS = 380;
+  const drag = { active: false, mode: true, anchor: -1, last: -1, picks: [], before: null, y: 0, x: 0, raf: 0, swallowClick: false };
+  let press = null; // a pending long-press on a row
+  let lastPick = -1; // for shift-click ranges
+  const visiblePicks = () => [...document.querySelectorAll("#main input[data-pick]")].filter((i) => i.offsetParent !== null);
+  function paintPick(input, on) {
+    input.checked = on;
+    const row = input.closest(".row");
+    if (row) row.classList.toggle("selected", on);
+    on ? state.selected.add(input.dataset.pick) : state.selected.delete(input.dataset.pick);
+  }
+  function applyRange(to) {
+    if (to < 0 || to === drag.last) return;
+    drag.last = to;
+    const lo = Math.min(drag.anchor, to), hi = Math.max(drag.anchor, to);
+    drag.picks.forEach((input, i) => paintPick(input, i >= lo && i <= hi ? drag.mode : drag.before.has(input.dataset.pick)));
+    renderSelection();
+  }
+  function pickIndexAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const row = el && el.closest("#main .row");
+    const input = row && row.querySelector("input[data-pick]");
+    if (input) return drag.picks.indexOf(input);
+    // Past the first or last row: clamp to the end the finger went past.
+    if (!drag.picks.length) return -1;
+    const first = drag.picks[0].getBoundingClientRect(), last = drag.picks[drag.picks.length - 1].getBoundingClientRect();
+    if (y < first.top) return 0;
+    if (y > last.bottom) return drag.picks.length - 1;
+    return -1;
+  }
+  function startDrag(input, x, y) {
+    drag.picks = visiblePicks();
+    drag.anchor = drag.picks.indexOf(input);
+    if (drag.anchor < 0) return false;
+    drag.active = true;
+    drag.mode = !input.checked;
+    drag.before = new Set(state.selected);
+    drag.last = -1; drag.x = x; drag.y = y;
+    document.body.classList.add("drag-selecting");
+    applyRange(drag.anchor);
+    lastPick = drag.anchor;
+    if (navigator.vibrate) try { navigator.vibrate(10); } catch { /* ignore */ }
+    drag.raf = requestAnimationFrame(autoScroll);
+    return true;
+  }
+  // Scroll the page while the finger sits near the top or bottom edge.
+  function autoScroll() {
+    if (!drag.active) return;
+    const edge = 70, h = window.innerHeight;
+    const bottomEdge = h - ($("#selbar").hidden ? 0 : $("#selbar").offsetHeight + 16);
+    let dy = 0;
+    if (drag.y < edge) dy = -Math.ceil((edge - drag.y) / 6);
+    else if (drag.y > bottomEdge - edge) dy = Math.ceil((drag.y - (bottomEdge - edge)) / 6);
+    if (dy) { window.scrollBy(0, dy); applyRange(pickIndexAt(drag.x, drag.y)); }
+    drag.raf = requestAnimationFrame(autoScroll);
+  }
+  function endDrag() {
+    if (press) { clearTimeout(press.timer); press = null; }
+    if (!drag.active) return;
+    drag.active = false;
+    cancelAnimationFrame(drag.raf);
+    document.body.classList.remove("drag-selecting");
+    drag.swallowClick = true;
+    setTimeout(() => { drag.swallowClick = false; }, 400);
+    render();
+  }
+  document.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || drag.active) return;
+    const pick = e.target.closest("#main .row .pick");
+    if (pick) {
+      const input = pick.querySelector("input[data-pick]");
+      if (!input) return;
+      if (e.shiftKey && lastPick >= 0) {
+        // Shift-click: same state as the box clicked, for everything since the last one.
+        e.preventDefault();
+        drag.picks = visiblePicks();
+        const i = drag.picks.indexOf(input);
+        const mode = !input.checked;
+        const lo = Math.min(lastPick, i), hi = Math.max(lastPick, i);
+        drag.picks.slice(lo, hi + 1).forEach((p) => paintPick(p, mode));
+        lastPick = i;
+        drag.swallowClick = true;
+        setTimeout(() => { drag.swallowClick = false; }, 400);
+        render();
+        return;
+      }
+      e.preventDefault();
+      startDrag(input, e.clientX, e.clientY);
+      return;
+    }
+    const body = e.target.closest("#main .row .body");
+    const input = body && body.closest(".row").querySelector("input[data-pick]");
+    if (!input) return;
+    press = { x: e.clientX, y: e.clientY, input, timer: setTimeout(() => {
+      const p = press; press = null;
+      if (p) startDrag(p.input, p.x, p.y);
+    }, LONG_PRESS_MS) };
+  });
+  document.addEventListener("pointermove", (e) => {
+    if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 8) { clearTimeout(press.timer); press = null; }
+    if (!drag.active) return;
+    drag.x = e.clientX; drag.y = e.clientY;
+    applyRange(pickIndexAt(e.clientX, e.clientY));
+  });
+  // Once a drag is on, a finger slide selects instead of scrolling.
+  document.addEventListener("touchmove", (e) => { if (drag.active && e.cancelable) e.preventDefault(); }, { passive: false });
+  document.addEventListener("pointerup", endDrag);
+  document.addEventListener("pointercancel", endDrag);
+  window.addEventListener("blur", endDrag);
+  document.addEventListener("contextmenu", (e) => { if (drag.active || press) e.preventDefault(); });
+  // The click that ends a drag must not toggle a box again or open a movement.
+  document.addEventListener("click", (e) => {
+    if (drag.swallowClick && e.target.closest("#main .row")) { e.preventDefault(); e.stopPropagation(); drag.swallowClick = false; }
+  }, true);
+
   let qTimer;
   $("#q").addEventListener("input", (e) => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.query = e.target.value; render(); }, 120); });
   $("#refresh").addEventListener("click", refresh);
