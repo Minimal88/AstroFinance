@@ -90,6 +90,7 @@ button { cursor: pointer; }
 .counter .big { font-size: 1.6rem; min-width: 1.2em; text-align: center; }
 .step { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: 1.15rem; font-weight: 700; line-height: 1; }
 .step[disabled] { opacity: 0.45; cursor: default; }
+.tile .ahead { font-size: 0.8rem; font-weight: 700; color: var(--ok); background: var(--ok-soft); border-radius: 8px; padding: 4px 8px; align-self: flex-start; }
 .tile .sub.late { color: var(--danger); font-weight: 600; }
 .bar { height: 6px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; margin-top: 2px; }
 .bar > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
@@ -317,10 +318,7 @@ button.row:active { background: var(--surface-2); }
     const lastDereck = fromDereck.map((c) => c.dereckDate).filter(Boolean).sort().pop();
     const lastCard = toCard.map((c) => c.cardDate).filter(Boolean).sort().pop();
     const nextD = cuotas.find((c) => !c.dereck);
-    const nextC = cuotas.find((c) => !c.card);
     const dCls = nextD && nextD.date ? (daysUntil(nextD.date) < 0 ? "late" : daysUntil(nextD.date) <= 7 ? "soon" : "") : "";
-    const cDue = nextC ? cardDue(nextC.date) : "";
-    const cCls = cDue ? (daysUntil(cDue) < 0 ? "late" : daysUntil(cDue) <= 7 ? "soon" : "") : "";
     return `<section class="summary">
       <div class="tile">
         <span class="label">${esc(VIEWER)} ha pagado</span>
@@ -350,9 +348,22 @@ button.row:active { background: var(--surface-2); }
         </div>
         <span class="sub">Guardadas en Wink${adv && cuotas.length ? " · " + esc(money(adv * cuotas[0].amount)) : ""}</span>
         ${state.advError ? `<span class="sub late">${esc(state.advError)}</span>` : ""}
-        <span class="sub">${nextC ? `Próximo pago de tarjeta: cuota ${nextC.n}, vence <span class="${cCls}">${esc(fmtDate(cDue))}</span>` : "La tarjeta está al día"}</span>
+        ${aheadLine(cuotas, adv)}
       </div>
     </section>`;
+  }
+
+  // With the advance installments counted, how far ahead Dereck is.
+  function aheadLine(cuotas, adv) {
+    if (!adv) return `<span class="sub">Sin cuotas adelantadas por ahora</span>`;
+    let paid = 0;
+    while (paid < cuotas.length && cuotas[paid].dereck) paid++;
+    const upTo = Math.min(paid + adv, cuotas.length);
+    if (upTo >= cuotas.length) return `<span class="ahead">¡Con esto la moto queda pagada!</span>`;
+    const c = cuotas[upTo - 1];
+    const left = cuotas.length - upTo;
+    return `<span class="ahead">Cubierto hasta la cuota ${c.n} · ${esc(fmtDate(c.date, true))}</span>
+        <span class="sub">Solo faltan ${left} cuota${left === 1 ? "" : "s"} para terminar</span>`;
   }
 
   function dereckPill(c) {
