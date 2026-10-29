@@ -21,7 +21,6 @@ does not matter.
 | `Ingest.gs` | `runIncrementalSync()`, backfill, trigger install |
 | `Tests.gs` | `runParserTests()` — 39 assertions; `debugParseLatest()` |
 | `Diagnostics.gs` | `auditCoverage()`, `diagnoseSender()`, `listBacSenders()` — troubleshooting |
-| `CardPages.gs` + `CardPage.html` | Read-only Amex pages for Dereck and Hannia, served as a web app |
 
 There is no `clasp` setup. Six files that change maybe twice a year do not
 justify a Node toolchain plus another long-lived secret to keep out of git.
@@ -185,33 +184,6 @@ the ⏰ **Triggers** tab. `removeTrigger()` undoes it.
 
 Make a small card purchase and confirm the row appears within ~15 minutes.
 Check **Executions** for green runs taking a few seconds each.
-
-### 8. Card pages for Dereck and Hannia (optional)
-
-Each gets a private link to a page with only their Amex movements, read live
-from the Sheet on every visit: paid or pending, grouped by Amex statement, with
-the same period filters as the phone app. They never get the Sheet, and nobody
-has to republish anything.
-
-1. In the editor, add an HTML file named **`CardPage`** (File → + → HTML) and
-   paste [`CardPage.html`](CardPage.html) into it. Add `CardPages.gs` as usual.
-2. **Deploy → New deployment → Web app.** Execute as: **Me**. Who has access:
-   **Anyone**. Authorize when asked.
-3. Run **`setupCardPages`**. The log prints one link per person; send each one
-   their own link.
-
-Notes:
-
-- The key in the link is the only thing that picks the card, so treat a link
-  like a password. `rotateCardPageKey('Dereck')` gives Dereck a new link and the
-  old one stops working at once.
-- Cards are matched by last digits plus cardholder name (`CARD_PAGE_PEOPLE`),
-  not by CardType: BAC's emails before about 8 Aug 2026 labelled some Amex
-  charges MASTER.
-- After changing the code, use **Deploy → Manage deployments → Edit → New
-  version** so the links keep working. A new deployment gets a new URL.
-- Google shows a "created by another user" banner above pages served to
-  anyone other than the owner.
 
 ## How it stays correct
 
