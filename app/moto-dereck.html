@@ -123,7 +123,11 @@ button.row:active { background: var(--surface-2); }
 .field label.toggle { display: flex; align-items: center; gap: 10px; font-weight: 700; }
 .field input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
 .field .date { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--muted); }
-.field input[type="date"], .sheet textarea { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); min-width: 0; }
+.sheet textarea { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); min-width: 0; }
+/* The native date input stays invisible on top; the visible text is always in Spanish. */
+.datebox { position: relative; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); color: var(--fg); font-weight: 600; min-width: 0; cursor: pointer; }
+.datebox.empty { color: var(--muted); font-weight: 500; }
+.datebox input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; cursor: pointer; }
 .sheet textarea { width: 100%; min-height: 64px; resize: vertical; }
 .sheet .actions { display: flex; gap: 10px; justify-content: flex-end; }
 .sheet .error { color: var(--danger); font-size: 0.85rem; margin: 0; }
@@ -383,11 +387,11 @@ button.row:active { background: var(--surface-2); }
         <div class="sub">Se cobra el ${esc(fmtDate(c.date, true))} · la tarjeta vence el ${esc(fmtDate(cardDue(c.date), true))}</div>
         <div class="field">
           <label class="toggle"><input type="checkbox" name="dereck" ${c.dereck ? "checked" : ""}> ${esc(VIEWER)} me pagó</label>
-          <label class="date">Fecha <input type="date" name="dereckDate" value="${esc(c.dereckDate)}"></label>
+          <div class="date">Fecha ${dateBox("dereckDate", c.dereckDate)}</div>
         </div>
         <div class="field">
           <label class="toggle"><input type="checkbox" name="card" ${c.card ? "checked" : ""}> Pagué la Mastercard</label>
-          <label class="date">Fecha <input type="date" name="cardDate" value="${esc(c.cardDate)}"></label>
+          <div class="date">Fecha ${dateBox("cardDate", c.cardDate)}</div>
         </div>
         <textarea name="notes" placeholder="Notas (se ven en la página de ${esc(VIEWER)})">${esc(c.notes)}</textarea>
         ${state.saveError ? `<p class="error">${esc(state.saveError)}</p>` : ""}
@@ -397,6 +401,26 @@ button.row:active { background: var(--surface-2); }
         </div>
       </form>
     </div>`;
+  }
+
+  const MONTHS_LONG = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  function longDate(isoDate) {
+    if (!isoDate) return "Sin fecha";
+    const [y, m, d] = isoDate.split("-").map(Number);
+    return `${d} de ${MONTHS_LONG[m - 1]} de ${y}`;
+  }
+  function dateBox(name, value) {
+    return `<label class="datebox${value ? "" : " empty"}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+      <span>${esc(longDate(value))}</span>
+      <input type="date" name="${name}" value="${esc(value)}" lang="es" aria-label="Fecha">
+    </label>`;
+  }
+  function syncDateBox(input) {
+    const box = input.closest(".datebox");
+    if (!box) return;
+    box.querySelector("span").textContent = longDate(input.value);
+    box.classList.toggle("empty", !input.value);
   }
 
   async function save(form) {
@@ -506,6 +530,13 @@ button.row:active { background: var(--surface-2); }
     const date = box.form.elements[box.name + "Date"];
     if (box.checked && !date.value) date.value = todayIso();
     if (!box.checked) date.value = "";
+    syncDateBox(date);
+  });
+  document.addEventListener("input", (e) => { if (e.target.matches('.datebox input')) syncDateBox(e.target); });
+  // Desktop browsers only open the calendar from its icon, which is hidden here.
+  document.addEventListener("click", (e) => {
+    const input = e.target.matches(".datebox input") ? e.target : null;
+    if (input && input.showPicker) { try { input.showPicker(); } catch { /* opens natively */ } }
   });
   document.addEventListener("submit", (e) => { e.preventDefault(); save(e.target); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && state.editing && !state.saving) { state.editing = null; renderModal(); } });
