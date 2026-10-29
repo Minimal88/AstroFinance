@@ -258,9 +258,13 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     if (t.startsWith("gast")) return "Gasto";
     return "";
   }
-  // "Hasta" is a month: MM/YYYY (also reads yyyy-mm and d/m/yyyy). Returns "yyyy-mm" or "".
+  // "Hasta" is a month: MM/YYYY (also reads yyyy-mm, d/m/yyyy and a Sheets date serial). Returns "yyyy-mm" or "".
   function parseMonth(raw) {
     const t = String(raw ?? "").trim();
+    if (/^\d{5}(\.\d+)?$/.test(t)) {
+      const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(+t) * 86400000);
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    }
     let m = t.match(/^(\d{4})-(\d{1,2})/);
     if (m) return `${m[1]}-${m[2].padStart(2, "0")}`;
     m = t.match(/^(?:\d{1,2}[\/-])?(\d{1,2})[\/-](\d{4})$/);
@@ -323,7 +327,9 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
       const cur = normCur(r[idx.Moneda]);
       const amount = parseAmount(r[idx.Monto]);
       const qRaw = String(r[idx.Quincena] ?? "").trim();
-      const q = qRaw.startsWith("1") ? 1 : qRaw.startsWith("2") ? 2 : 0;
+      // 1 or 2: that payday only. "Ambas": the amount comes or goes every payday (twice a month).
+      // Blank: a monthly amount, split between both paydays.
+      const q = qRaw.startsWith("1") ? 1 : qRaw.startsWith("2") ? 2 : /^(amb|cada|q)/i.test(qRaw) ? 3 : 0;
       const until = parseMonth(r[idx.Hasta]);
       lines.push({
         row: i + 2, type, name, amount, cur: type === "Deducción" ? cur : cur === "%" ? "USD" : cur, q,
@@ -335,23 +341,27 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     return { lines, rate, goal, at: Date.now() };
   }
 
+  // What a line adds up to in a month, in dollars.
+  const monthly = (l, rate) => toUsd(l.amount, l.cur, rate) * (l.q === 3 ? 2 : 1);
+  // The part of a line's monthly amount that falls on payday q.
+  const shareOn = (l, q) => (l.q === q ? l.usd : l.q === 0 || l.q === 3 ? l.usd / 2 : 0);
+  const sumOn = (list, q) => list.reduce((s, l) => s + shareOn(l, q), 0);
   function compute(d) {
     const active = d.lines.filter((l) => !l.ended);
-    const incomes = active.filter((l) => l.type === "Ingreso");
-    const gross = incomes.reduce((s, l) => s + toUsd(l.amount, l.cur, d.rate), 0);
-    const deductions = active.filter((l) => l.type === "Deducción").map((l) => ({ ...l, usd: l.cur === "%" ? (gross * l.amount) / 100 : toUsd(l.amount, l.cur, d.rate) }));
+    const incomes = active.filter((l) => l.type === "Ingreso").map((l) => ({ ...l, usd: monthly(l, d.rate) }));
+    const gross = incomes.reduce((s, l) => s + l.usd, 0);
+    const deductions = active.filter((l) => l.type === "Deducción").map((l) => ({ ...l, usd: l.cur === "%" ? (gross * l.amount) / 100 : monthly(l, d.rate) }));
     const net = gross - deductions.reduce((s, l) => s + l.usd, 0);
-    const spend = active.filter((l) => l.type === "Gasto" || l.type === "Ahorro").map((l) => ({ ...l, usd: toUsd(l.amount, l.cur, d.rate) }));
+    const spend = active.filter((l) => l.type === "Gasto" || l.type === "Ahorro").map((l) => ({ ...l, usd: monthly(l, d.rate) }));
     const total = spend.reduce((s, l) => s + l.usd, 0);
     const groups = GROUPS.map(([g]) => {
       const items = spend.filter((l) => l.group === g);
       return { g, items, usd: items.reduce((s, l) => s + l.usd, 0) };
     }).filter((x) => x.items.length);
-    const half = net / 2;
     const qs = [1, 2].map((q) => {
-      const own = spend.filter((l) => l.q === q).reduce((s, l) => s + l.usd, 0);
-      const shared = spend.filter((l) => !l.q).reduce((s, l) => s + l.usd, 0) / 2;
-      return { q, income: half, out: own + shared, left: half - own - shared, count: spend.filter((l) => l.q === q).length };
+      const income = sumOn(incomes, q) - sumOn(deductions, q);
+      const out = sumOn(spend, q);
+      return { q, income, out, left: income - out };
     });
     const ended = d.lines.filter((l) => l.ended);
     return { gross, deductions, net, spend, total, groups, qs, left: net - total, ended, incomes };
@@ -459,25 +469,27 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
 
   function lineRow(l, c, opts = {}) {
     const qTag = l.type === "Ingreso" || l.type === "Deducción" ? "" :
-      l.q ? `<span class="q">${l.q === 1 ? "1ª Q" : "2ª Q"}</span>` : `<span class="q m">Mensual</span>`;
+      l.q === 3 ? `<span class="q">Cada Q</span>` : l.q ? `<span class="q">${l.q === 1 ? "1ª Q" : "2ª Q"}</span>` : `<span class="q m">Mensual</span>`;
     const until = l.until ? `<span class="q end">${l.ended ? "Terminó" : "Hasta"} ${esc(monthLabel(l.until))}</span>` : "";
-    const showOrig = l.cur === "%" || l.cur !== state.cur;
+    const showOrig = l.cur === "%" || l.cur !== state.cur || l.q === 3;
     return `<button class="line" type="button" data-edit="${l.row}">
       <span class="name">${esc(l.name)}</span>
       <span class="amt ${opts.minus ? "minus" : ""}">${opts.minus ? "−" : ""}${esc(money(l.usd ?? toUsd(l.amount, l.cur, state.data.rate)))}</span>
-      <span class="meta">${qTag}${until}${showOrig ? `<span class="orig">${esc(native(l))}</span>` : ""}</span>
+      <span class="meta">${qTag}${until}${showOrig ? `<span class="orig">${esc(native(l))}${l.q === 3 && l.cur !== "%" ? " c/q" : ""}</span>` : ""}</span>
       <span class="share">${l.usd != null && !opts.noShare ? esc(fmtPct(pct(l.usd, c.net))) : ""}</span>
       ${l.notes ? `<span class="note">${esc(l.notes)}</span>` : ""}
     </button>`;
   }
 
   function income(c) {
-    const rows = c.incomes.map((l) => lineRow({ ...l, usd: toUsd(l.amount, l.cur, state.data.rate) }, c, { noShare: true })).join("")
+    const rows = c.incomes.map((l) => lineRow(l, c, { noShare: true })).join("")
       + c.deductions.map((l) => lineRow(l, c, { minus: true, noShare: true })).join("");
     return `<section class="card" aria-label="Ingresos">
       <div class="group-head"><h2>Ingresos</h2><span class="tot num">${esc(money(c.net))}<small>neto al mes</small></span></div>
       <div class="lines">${rows || `<div class="line"><span class="name" style="color:var(--muted)">Agrega tu ingreso con “Agregar línea”.</span></div>`}
-        <div class="line total"><span class="name">Por quincena</span><span class="amt">${esc(money(c.net / 2))}</span></div>
+        ${Math.abs(c.qs[0].income - c.qs[1].income) < 0.5
+          ? `<div class="line total"><span class="name">Neto por quincena</span><span class="amt">${esc(money(c.qs[0].income))}</span></div>`
+          : c.qs.map((q) => `<div class="line total"><span class="name">Neto ${q.q === 1 ? "1ª" : "2ª"} quincena</span><span class="amt">${esc(money(q.income))}</span></div>`).join("")}
       </div>
     </section>`;
   }
@@ -526,7 +538,7 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
           </select></label>
         </div>
         <div class="preview" id="f-preview"></div>
-        <div class="fld" data-only="spend"><span>Se paga en</span>${radios("q", [[1, "1ª quincena"], [2, "2ª quincena"], [0, "Mitad y mitad"]], l.q)}</div>
+        <div class="fld"><span>Cuándo</span>${radios("q", [[1, "1ª quincena"], [2, "2ª quincena"], [3, "Cada quincena"], [0, "Una vez al mes"]], l.q)}</div>
         <label class="fld" data-only="gasto"><span>Grupo</span><select id="f-group" name="group">
           ${GROUPS.filter(([g]) => g !== "Ahorro").map(([g]) => `<option ${groupOf(l.groupRaw, l.type) === g ? "selected" : ""}>${g}</option>`).join("")}
         </select></label>
@@ -567,7 +579,6 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     const form = $('#modal form[data-sheet="line"]');
     if (!form) return;
     const type = (form.querySelector('input[name="type"]:checked') || {}).value || "Gasto";
-    form.querySelectorAll('[data-only="spend"]').forEach((el) => { el.hidden = !(type === "Gasto" || type === "Ahorro"); });
     form.querySelectorAll('[data-only="gasto"]').forEach((el) => { el.hidden = type !== "Gasto"; });
     const pctOpt = form.querySelector('#f-cur option[value="%"]');
     pctOpt.disabled = type !== "Deducción";
@@ -583,6 +594,7 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     } else if (amount) {
       const usd = toUsd(amount, cur, rate);
       text = `≈ <b>${esc(money(usd, cur === "CRC" ? "USD" : "CRC"))}</b> al tipo de cambio de ₡${esc(rate.toLocaleString("en-US"))}`;
+      if (form.elements.q.value === "3") text += ` · al mes <b>${esc(money(usd * 2, cur))}</b>`;
     }
     $("#f-preview").innerHTML = text;
   }
@@ -600,12 +612,12 @@ details.ended .line .name { color: var(--muted); text-decoration: line-through; 
     const amount = parseAmount(f.get("amount"));
     if (!name) { state.saveError = "Escribe el concepto."; renderModal(); return; }
     if (!amount) { state.saveError = "Escribe un monto mayor que cero."; renderModal(); return; }
-    const spend = type === "Gasto" || type === "Ahorro";
-    const q = spend ? Number(f.get("q") || 0) : 0;
+    const q = Number(f.get("q") || 0);
     const group = type === "Gasto" ? String(f.get("group") || "Otros") : type === "Ahorro" ? "Ahorro" : "";
-    const until = f.get("um") ? `${f.get("um")}/${f.get("uy")}` : "";
+    // The apostrophe keeps Sheets from turning MM/YYYY into a date.
+    const until = f.get("um") ? `'${f.get("um")}/${f.get("uy")}` : "";
     const cur = f.get("cur") || "USD";
-    const rowValues = [type, name, amount, cur, q || "", group, until, String(f.get("notes") || "").trim()];
+    const rowValues = [type, name, amount, cur, q === 3 ? "Ambas" : q || "", group, until, String(f.get("notes") || "").trim()];
     state.saving = true; state.saveError = ""; renderModal();
     try {
       let row;

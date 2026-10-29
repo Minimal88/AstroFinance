@@ -93,10 +93,14 @@ connector (nobody else sees it, so there is no published copy):
 
 - `Tipo` is `Ingreso`, `Deducción`, `Gasto` or `Ahorro`. `Moneda` is `USD`,
   `CRC` or `%` (deductions only: a percentage of the gross income).
-- `Quincena` is `1` or `2` (blank splits the line between both). `Grupo` is
+- `Quincena` is `1` or `2` (that payday only), `Ambas` (the amount comes or
+  goes every payday, so it counts twice a month, like the salary and its
+  deductions from the pay stub) or blank (a monthly amount split between both
+  paydays). `Grupo` is
   `Casa`, `Transporte`, `Salud`, `Personal` or `Otros`; `Ahorro` lines have
   their own group.
-- `Hasta` is an optional `MM/YYYY`: once that month has passed the line moves
+- `Hasta` is an optional `MM/YYYY` (the page writes it with a leading `'` so
+  Sheets keeps it as text; a date serial is also read): once that month has passed the line moves
   to "Ya terminaron" and stops counting.
 - `J2` holds the colones per dollar rate and `K2` the goal for what is left
   over (`10-20`, as a % of net income).
