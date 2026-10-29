@@ -37,9 +37,9 @@ Google Sheets. The spreadsheet ID can be changed in the app's settings.
 ## Phone app
 
 - **Menu**: the ☰ button in the header opens the sections (Pendientes,
-  Movimientos, Conciliar, Pagos), links to Dereck's and Hannia's Amex pages
-  and Dereck's motorcycle page (open one to publish fresh data to it), and
-  Ajustes.
+  Movimientos, Conciliar, Pagos), a link to the Presupuesto page, links to
+  Dereck's and Hannia's Amex pages and Dereck's motorcycle page (open one to
+  publish fresh data to it), and Ajustes.
 - **Pendientes**: pending charges grouped by cardholder. A tile per card family
   shows when its next payment is due, the statement total and what is still
   pending; tapping a tile filters to that card.
@@ -80,6 +80,31 @@ Google Sheets. The spreadsheet ID can be changed in the app's settings.
     (±0.01) and date (±3 days).
 
 To change the app, edit the file and republish it to the same artifact.
+
+## Presupuesto (monthly budget)
+
+[`app/presupuesto.html`](app/presupuesto.html) is the owner's monthly budget,
+based on the old "Presupuesto 2026" sheet. It reads and writes the
+`Presupuesto` tab of the same Sheet through the owner's Google Sheets
+connector (nobody else sees it, so there is no published copy):
+
+| Tipo | Concepto | Monto | Moneda | Quincena | Grupo | Hasta | Notas | | TipoCambio | MetaSaldo |
+|---|---|---|---|---|---|---|---|---|---|---|
+
+- `Tipo` is `Ingreso`, `Deducción`, `Gasto` or `Ahorro`. `Moneda` is `USD`,
+  `CRC` or `%` (deductions only: a percentage of the gross income).
+- `Quincena` is `1` or `2` (blank splits the line between both). `Grupo` is
+  `Casa`, `Transporte`, `Salud`, `Personal` or `Otros`; `Ahorro` lines have
+  their own group.
+- `Hasta` is an optional `MM/YYYY`: once that month has passed the line moves
+  to "Ya terminaron" and stops counting.
+- `J2` holds the colones per dollar rate and `K2` the goal for what is left
+  over (`10-20`, as a % of net income).
+- The page shows what is left each month against that goal, how the net
+  income splits by group, what is left from each payday, income and
+  deductions, and every line by group, in dollars or colones. Tapping a line
+  edits it (after checking the row still holds it); "Agregar línea" fills the
+  first empty row; deleting clears the row.
 
 ## Amex pages for Dereck and Hannia
 
